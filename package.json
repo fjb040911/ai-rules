@@ -1,0 +1,24 @@
+{
+  "name": "ai-law",
+  "version": "0.1.0",
+  "description": "AI-RULES CLI for architecture-aware AI coding governance",
+  "license": "MIT",
+  "type": "commonjs",
+  "bin": {
+    "ai-law": "cli/src/index.js"
+  },
+  "files": [
+    "cli/src",
+    "templates",
+    "docs",
+    "README.md",
+    "rule.md"
+  ],
+  "dependencies": {
+    "clipboardy": "^3.0.0",
+    "inquirer": "^9.2.21"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -22,6 +22,12 @@ AI-RULES 提供可复用的规则模板与可执行的审计闭环：
 ## 安装（本地）
 本仓库提供 Node.js CLI（位于 cli/）。
 
+若 npm 包暂未发布，可直接通过 GitHub 安装：
+
+```bash
+npm install -g github:fjb040911/ai-rules#v0.1.0
+```
+
 ```bash
 cd cli
 npm install
@@ -77,6 +83,87 @@ CLI 会在项目根目录创建 .ai-rules/：
 2. 修改 .ai-rules/rules-config.json 中的规则启用与范围
 3. 在 templates/i18n/ 中添加或修改语言文案
 4. 使用 extends 复用 base 规则
+
+### 规则扩展详细说明
+
+#### 1) 规则块结构（.ai-rules.md）
+每条规则建议使用统一结构，便于 CLI 与 AI 审计解析：
+
+- RULE: 规则编号（示例：ARCH-101）
+- severity: 严重级别（FATAL / WARN / INFO）
+- scope: 规则作用域（如 architecture / api / security）
+- intentKey: 规则意图文案 key
+- detect: 检测条件（regex / ast / semantic）
+- fixKey: 修复建议文案 key
+- promptKeys: 审计 Prompt 片段 key（violation / requirement / solution）
+- context: 项目可复用资产路径（供修复建议引用）
+
+示例：
+
+```markdown
+### RULE: ARCH-101
+severity: FATAL
+scope: architecture
+intentKey: rule.ARCH-101.intent
+
+detect:
+    regex: "@RestController[\\s\\S]*Repository"
+    where: filePath in src/main/java/**
+fixKey: rule.ARCH-101.fix
+promptKeys:
+    violation: rule.ARCH-101.prompt.violation
+    requirement: rule.ARCH-101.prompt.requirement
+    solution: rule.ARCH-101.prompt.solution
+context:
+    - src/main/java/**/service/
+```
+
+#### 2) 规则配置（rules-config.json）
+新增规则后，必须同步配置文件：
+
+- enabledRuleIds: 加入规则编号，否则不会参与审计
+- scopes: 如果使用了新 scope，需加入 scopes 列表
+- detectOptions.include/exclude: 确保规则覆盖目标代码路径
+- prompt.promptTemplateKeys: 保持审计/修复模板 key 可解析
+
+#### 3) 文案与多语言（templates/i18n/*.json）
+所有规则文案都应通过 key 管理，不建议硬编码在规则文件：
+
+至少新增以下 key：
+- rule.<RULE_ID>.intent
+- rule.<RULE_ID>.fix
+- rule.<RULE_ID>.prompt.violation
+- rule.<RULE_ID>.prompt.requirement
+- rule.<RULE_ID>.prompt.solution
+
+建议 zh-CN 与 en 同步维护，避免切换语言时出现缺失 key。
+
+#### 4) 继承与分层扩展策略
+- 通用约束放在 *-base（如 python-base、frontend-base）
+- 框架专属约束放在分支模板（如 python-fastapi、react-ts）
+- 分支模板通过 extends 继承 base，减少重复定义
+
+实践建议：
+- “跨项目都适用”的规则进 base
+- “仅某框架适用”的规则进 branch
+
+#### 5) 命名规范建议
+- rule id 前缀按领域区分：ARCH、SEC、API、DATA、TEST、OBS
+- 同一规则在多语言文案中使用同一 key 前缀
+- issueId（审计报告）建议格式：ISSUE-001、ISSUE-002
+
+#### 6) 检测策略建议
+- 优先级：regex（快）→ ast（准）→ semantic（兜底）
+- FATAL 规则尽量使用可确定的 detect 条件，减少误报
+- 语义规则建议在报告中输出证据字段（如 file/line/snippet）
+
+#### 7) 新增规则最小清单（Checklist）
+新增一条规则时，至少完成以下 5 步：
+1. 在 .ai-rules.md 中新增规则块（含 detect 与 promptKeys）
+2. 在 rules-config.json 中启用该 ruleId
+3. 在 zh-CN/en 语言包补齐文案 key
+4. 用 ai-law audit 验证报告中是否输出该规则
+5. 用 ai-law fix 验证是否能获取 repairPrompt
 
 ## 审计报告结构
 审计 Prompt 要求输出 ai-rule-report.json，且每条违规必须包含 issueId 与 repairPrompt：

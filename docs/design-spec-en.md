@@ -22,6 +22,12 @@ AI-RULES provides a repeatable flow:
 ## Installation (Local)
 This repository ships a Node.js CLI under cli/.
 
+If the npm package is not published yet, install directly from GitHub:
+
+```bash
+npm install -g github:fjb040911/ai-rules#v0.1.0
+```
+
 ```bash
 cd cli
 npm install

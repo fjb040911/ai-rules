@@ -9,6 +9,12 @@ AI-RULES is a governance framework for AI-assisted coding. It turns human-readab
 - Supports multi-language prompt rendering
 
 ## Install (Local CLI)
+### Option A: Install from GitHub (recommended when npm package is unavailable)
+```bash
+npm install -g github:fjb040911/ai-rules#v0.1.0
+```
+
+### Option B: Local development install
 ```bash
 cd cli
 npm install
