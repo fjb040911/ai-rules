@@ -1,0 +1,13 @@
+{
+  "name": "ai-law",
+  "version": "0.1.0",
+  "description": "AI-RULES CLI",
+  "license": "MIT",
+  "bin": {
+    "ai-law": "src/index.js"
+  },
+  "dependencies": {
+    "clipboardy": "^3.0.0",
+    "inquirer": "^9.2.21"
+  }
+}

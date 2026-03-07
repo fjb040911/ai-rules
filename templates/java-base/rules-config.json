@@ -1,0 +1,58 @@
+{
+  "version": "0.1.0",
+  "stack": "java-base",
+  "rulesFile": ".ai-rules.md",
+  "i18n": {
+    "defaultLocale": "zh-CN",
+    "supportedLocales": [
+      "zh-CN",
+      "en"
+    ],
+    "localeDir": "../i18n"
+  },
+  "enabledRuleIds": [
+    "JAVA-SEC-201",
+    "JAVA-API-302",
+    "JAVA-DATA-402",
+    "JAVA-TEST-501",
+    "JAVA-OBS-601"
+  ],
+  "severityThreshold": "WARN",
+  "scopes": [
+    "security",
+    "api",
+    "data",
+    "test",
+    "observability"
+  ],
+  "pathAliases": {
+    "@controller": "src/main/java/**/controller",
+    "@service": "src/main/java/**/service",
+    "@repository": "src/main/java/**/repository",
+    "@dto": "src/main/java/**/dto"
+  },
+  "detectOptions": {
+    "include": [
+      "src/main/java/**/*.java",
+      "src/test/java/**/*.java",
+      "src/main/resources/application*.yml",
+      "pom.xml",
+      "build.gradle",
+      "build.gradle.kts"
+    ],
+    "exclude": [
+      "target/**",
+      "build/**"
+    ]
+  },
+  "prompt": {
+    "style": "strict",
+    "includeContextAssets": true,
+    "promptTemplateKeys": {
+      "auditSystem": "prompt.audit.system",
+      "auditUser": "prompt.audit.user",
+      "repairSystem": "prompt.repair.system",
+      "repairUser": "prompt.repair.user"
+    }
+  }
+}

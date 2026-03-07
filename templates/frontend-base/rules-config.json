@@ -1,0 +1,52 @@
+{
+  "version": "0.1.0",
+  "stack": "frontend-base",
+  "rulesFile": ".ai-rules.md",
+  "i18n": {
+    "defaultLocale": "zh-CN",
+    "supportedLocales": [
+      "zh-CN",
+      "en"
+    ],
+    "localeDir": "../i18n"
+  },
+  "enabledRuleIds": [
+    "ARCH-101",
+    "ARCH-102",
+    "ARCH-103",
+    "UI-201",
+    "UI-202",
+    "TS-401",
+    "STYLE-501",
+    "STYLE-502"
+  ],
+  "severityThreshold": "WARN",
+  "scopes": [
+    "ui",
+    "service",
+    "module",
+    "typescript",
+    "style"
+  ],
+  "pathAliases": {},
+  "detectOptions": {
+    "include": [
+      "src/**/*.{ts,tsx,js,jsx,vue}"
+    ],
+    "exclude": [
+      "**/*.test.*",
+      "node_modules/**",
+      "dist/**"
+    ]
+  },
+  "prompt": {
+    "style": "strict",
+    "includeContextAssets": true,
+    "promptTemplateKeys": {
+      "auditSystem": "prompt.audit.system",
+      "auditUser": "prompt.audit.user",
+      "repairSystem": "prompt.repair.system",
+      "repairUser": "prompt.repair.user"
+    }
+  }
+}

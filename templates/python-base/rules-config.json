@@ -1,0 +1,61 @@
+{
+  "version": "0.1.0",
+  "stack": "python-base",
+  "rulesFile": ".ai-rules.md",
+  "i18n": {
+    "defaultLocale": "zh-CN",
+    "supportedLocales": [
+      "zh-CN",
+      "en"
+    ],
+    "localeDir": "../i18n"
+  },
+  "enabledRuleIds": [
+    "PYBASE-CODE-101",
+    "PYBASE-CODE-102",
+    "PYBASE-TYPE-201",
+    "PYBASE-TYPE-202",
+    "PYBASE-SEC-301",
+    "PYBASE-SEC-302",
+    "PYBASE-TEST-401",
+    "PYBASE-REPRO-501"
+  ],
+  "severityThreshold": "WARN",
+  "scopes": [
+    "code-safety",
+    "typing",
+    "security",
+    "test",
+    "reproducibility"
+  ],
+  "pathAliases": {
+    "@src": "src",
+    "@tests": "tests",
+    "@scripts": "scripts"
+  },
+  "detectOptions": {
+    "include": [
+      "**/*.py",
+      "pyproject.toml",
+      "requirements*.txt"
+    ],
+    "exclude": [
+      ".venv/**",
+      "venv/**",
+      "__pycache__/**",
+      ".pytest_cache/**",
+      "build/**",
+      "dist/**"
+    ]
+  },
+  "prompt": {
+    "style": "strict",
+    "includeContextAssets": true,
+    "promptTemplateKeys": {
+      "auditSystem": "prompt.audit.system",
+      "auditUser": "prompt.audit.user",
+      "repairSystem": "prompt.repair.system",
+      "repairUser": "prompt.repair.user"
+    }
+  }
+}

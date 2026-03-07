@@ -1,0 +1,60 @@
+{
+  "version": "0.1.0",
+  "stack": "python-fastapi",
+  "extends": "../rules-config.json",
+  "rulesFile": ".ai-rules.md",
+  "i18n": {
+    "defaultLocale": "zh-CN",
+    "supportedLocales": [
+      "zh-CN",
+      "en"
+    ],
+    "localeDir": "../../i18n"
+  },
+  "enabledRuleIds": [
+    "PY-ARCH-101",
+    "PY-ARCH-102",
+    "PY-SEC-202",
+    "PY-API-301",
+    "PY-API-302",
+    "PY-ASYNC-401",
+    "PY-ASYNC-402"
+  ],
+  "severityThreshold": "WARN",
+  "scopes": [
+    "architecture",
+    "security",
+    "api",
+    "async"
+  ],
+  "pathAliases": {
+    "@api": "app/api",
+    "@service": "app/services",
+    "@repo": "app/repositories",
+    "@schema": "app/schemas"
+  },
+  "detectOptions": {
+    "include": [
+      "app/**/*.py",
+      "tests/**/*.py",
+      "pyproject.toml",
+      "requirements*.txt"
+    ],
+    "exclude": [
+      ".venv/**",
+      "venv/**",
+      "__pycache__/**",
+      ".pytest_cache/**"
+    ]
+  },
+  "prompt": {
+    "style": "strict",
+    "includeContextAssets": true,
+    "promptTemplateKeys": {
+      "auditSystem": "prompt.audit.system",
+      "auditUser": "prompt.audit.user",
+      "repairSystem": "prompt.repair.system",
+      "repairUser": "prompt.repair.user"
+    }
+  }
+}

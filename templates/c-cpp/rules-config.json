@@ -1,0 +1,71 @@
+{
+  "version": "0.1.0",
+  "stack": "c-cpp",
+  "rulesFile": ".ai-rules.md",
+  "i18n": {
+    "defaultLocale": "zh-CN",
+    "supportedLocales": [
+      "zh-CN",
+      "en"
+    ],
+    "localeDir": "../i18n"
+  },
+  "enabledRuleIds": [
+    "ARCH-101",
+    "ARCH-102",
+    "MEM-201",
+    "MEM-202",
+    "MEM-203",
+    "CONC-301",
+    "CONC-302",
+    "API-401",
+    "API-402",
+    "BUILD-501",
+    "BUILD-502",
+    "SEC-601",
+    "SEC-602",
+    "TEST-701"
+  ],
+  "severityThreshold": "WARN",
+  "scopes": [
+    "architecture",
+    "memory",
+    "resource",
+    "concurrency",
+    "api",
+    "build",
+    "security",
+    "test"
+  ],
+  "pathAliases": {
+    "@app": "src/app",
+    "@domain": "src/domain",
+    "@infra": "src/infra",
+    "@adapter": "src/adapter",
+    "@include": "src/include"
+  },
+  "detectOptions": {
+    "include": [
+      "src/**/*.{c,cc,cpp,cxx,h,hh,hpp,hxx}",
+      "tests/**/*.{c,cc,cpp,cxx,h,hh,hpp,hxx}",
+      "CMakeLists.txt",
+      "**/CMakeLists.txt",
+      "Makefile"
+    ],
+    "exclude": [
+      "build/**",
+      "out/**",
+      "third_party/**"
+    ]
+  },
+  "prompt": {
+    "style": "strict",
+    "includeContextAssets": true,
+    "promptTemplateKeys": {
+      "auditSystem": "prompt.audit.system",
+      "auditUser": "prompt.audit.user",
+      "repairSystem": "prompt.repair.system",
+      "repairUser": "prompt.repair.user"
+    }
+  }
+}

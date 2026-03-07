@@ -1,0 +1,48 @@
+{
+  "version": "0.1.0",
+  "stack": "react-ts",
+  "extends": "../rules-config.json",
+  "rulesFile": ".ai-rules.md",
+  "i18n": {
+    "defaultLocale": "zh-CN",
+    "supportedLocales": [
+      "zh-CN",
+      "en"
+    ],
+    "localeDir": "../../i18n"
+  },
+  "enabledRuleIds": [
+    "REACT-301",
+    "REACT-302"
+  ],
+  "severityThreshold": "WARN",
+  "scopes": [
+    "react",
+    "ui"
+  ],
+  "pathAliases": {
+    "@components": "src/components",
+    "@services": "src/services",
+    "@ui": "src/components/ui"
+  },
+  "detectOptions": {
+    "include": [
+      "src/**/*.{ts,tsx}"
+    ],
+    "exclude": [
+      "**/*.test.*",
+      "node_modules/**",
+      "dist/**"
+    ]
+  },
+  "prompt": {
+    "style": "strict",
+    "includeContextAssets": true,
+    "promptTemplateKeys": {
+      "auditSystem": "prompt.audit.system",
+      "auditUser": "prompt.audit.user",
+      "repairSystem": "prompt.repair.system",
+      "repairUser": "prompt.repair.user"
+    }
+  }
+}
