@@ -7,6 +7,7 @@ AI-RULES is a governance framework for AI-assisted coding. It turns human-readab
 - Provides reusable templates per stack
 - Creates a consistent audit and repair workflow
 - Supports multi-language prompt rendering
+AI-RULES also drives AI to auto-review code against defined rules, significantly reducing manual review effort in Human-in-the-Loop Audit Flow and improving code quality and consistency in long-running tasks.
 
 ## Install (Local CLI)
 ### Option A: Install from GitHub (recommended when npm package is unavailable)

@@ -18,6 +18,7 @@ AI-RULES provides a repeatable flow:
 - Reusable rule templates per stack
 - Human-in-the-loop audit flow
 - Multi-language prompt rendering
+AI-RULES also drives AI to auto-review code against defined rules, significantly reducing manual review effort in Human-in-the-Loop Audit Flow, and improving code quality and consistency in long-running tasks.
 
 ## Installation (Local)
 This repository ships a Node.js CLI under cli/.

@@ -18,6 +18,7 @@ AI-RULES 提供可复用的规则模板与可执行的审计闭环：
 - 多模板体系，适配多语言与多框架
 - 可复用的审计流程与报告结构
 - 多语言 Prompt 渲染
+AI-RULES 还能促使 AI 按既定规则自动 Review 代码，在 Human-in-the-Loop Audit Flow 中显著降低人工 Review 成本，在长周期任务中持续提升代码质量与一致性。
 
 ## 安装（本地）
 本仓库提供 Node.js CLI（位于 cli/）。
