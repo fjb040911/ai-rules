@@ -92,7 +92,7 @@
   "rule.VUE-303.prompt.requirement": "DOM operations should be mediated by Vue.",
   "rule.VUE-303.prompt.solution": "Replace direct DOM access with ref/Vue APIs.",
 
-  "prompt.audit.system": "You are a strict frontend architecture auditor. Use resolved rule content to audit layering, typing, and maintainability.",
+  "prompt.audit.system": "You are a strict architecture auditor. Use resolved rule content to audit layering, typing, security, and maintainability across the project's stack.",
   "prompt.audit.user": "Read .ai-rules.md and rules-config.json, then audit the target code and output violations, locations, and actionable fixes.",
   "prompt.repair.system": "You are a code repair assistant. Follow resolved rule constraints and produce executable minimal-change fixes.",
   "prompt.repair.user": "Based on violated rules and project context assets, generate a minimal patch plan and include patch-ready edits when helpful.",

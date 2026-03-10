@@ -3,11 +3,7 @@ const fs = require("fs/promises");
 const inquirer = require("inquirer");
 const prompt = inquirer.prompt || (inquirer.default && inquirer.default.prompt);
 const { readJson } = require("./utils/fs");
-const {
-  writeProviderSlashFiles,
-  resolveProvider,
-  readLocaleMap: readSetupLocaleMap,
-} = require("./setup");
+const { runSetup } = require("./setup");
 const {
   buildTemplateChoices,
   getTemplatesRoot,
@@ -177,24 +173,7 @@ async function maybeSetupSlashCommands(cwd, locale) {
     },
   ]);
 
-  const providerInfo = resolveProvider(provider);
-  if (!providerInfo) {
-    process.stderr.write("Skip slash setup: invalid provider.\n");
-    return;
-  }
-
-  const localeMap = await readSetupLocaleMap(locale);
-  const writtenFiles = await writeProviderSlashFiles({
-    cwd,
-    provider: providerInfo,
-    localeMap,
-    locale,
-  });
-
-  process.stdout.write("Slash command files updated:\n");
-  for (const filePath of writtenFiles) {
-    process.stdout.write(`- ${filePath}\n`);
-  }
+  await runSetup(["--provider", provider, "--locale", locale, "--write"]);
 }
 
 function printSuccessBanner() {

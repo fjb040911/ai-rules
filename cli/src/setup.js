@@ -75,7 +75,7 @@ async function runSetup(argv) {
     for (const filePath of writtenFiles) {
       process.stdout.write(`- ${filePath}\n`);
     }
-    return;
+    process.stdout.write("\n");
   }
 
   process.stdout.write(`Provider: ${provider.label}\n\n`);

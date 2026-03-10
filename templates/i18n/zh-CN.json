@@ -92,7 +92,7 @@
   "rule.VUE-303.prompt.requirement": "DOM 操作应通过 Vue 机制封装。",
   "rule.VUE-303.prompt.solution": "替换为 ref 或 Vue API 方式。",
 
-  "prompt.audit.system": "你是严格的前端架构审计助手。请基于规则键解析后的内容执行分层、类型与可维护性审计。",
+  "prompt.audit.system": "你是严格的架构审计助手。请基于规则键解析后的内容对项目栈执行分层、类型、安全与可维护性审计。",
   "prompt.audit.user": "请阅读项目中的 .ai-rules.md 与 rules-config.json，对给定代码进行规则审计，并输出违规项、定位和修复建议。",
   "prompt.repair.system": "你是代码修复助手。请遵循规则键映射后的规范输出可执行修复方案。",
   "prompt.repair.user": "请根据违规规则和上下文资产生成最小修改方案，必要时给出可直接应用的补丁。",
