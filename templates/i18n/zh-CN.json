@@ -361,5 +361,12 @@
   "rule.PY-OBS-601.fix": "补充请求上下文、错误码与追踪字段。",
   "rule.PY-OBS-601.prompt.violation": "检测到关键路径日志不足。",
   "rule.PY-OBS-601.prompt.requirement": "运行时问题应可追踪可诊断。",
-  "rule.PY-OBS-601.prompt.solution": "在异常和关键分支加入统一日志结构。"
+  "rule.PY-OBS-601.prompt.solution": "在异常和关键分支加入统一日志结构。",
+
+  "prompt.setup.copilot": "请为当前仓库在 GitHub Copilot Chat 中创建两个可复用快捷指令：'/law-audit' 和 '/law-fix'。'/law-audit' 执行：ai-law audit --locale zh-CN，并严格只输出符合 schema 的 ai-rule-report.json。'/law-fix' 先询问 issueId，再执行：ai-law fix --issueId <ISSUE_ID>，并基于复制出的 prompt 生成最小可落地补丁。",
+  "prompt.setup.codex": "请为当前仓库在 Codex 中创建两个可复用命令模板：'/law-audit' 和 '/law-fix'。'/law-audit' 执行 ai-law audit --locale zh-CN，只输出 ai-rule-report.json。'/law-fix' 先询问 issueId，执行 ai-law fix --issueId <ISSUE_ID>，再输出最小且符合架构约束的代码修改。",
+  "prompt.setup.cursor": "请在 Cursor 中为当前仓库配置两个可复用提示词：'law-audit' 与 'law-fix'。'law-audit' 运行 ai-law audit --locale zh-CN，并按 JSON schema 严格输出 ai-rule-report.json。'law-fix' 先询问 issueId，再运行 ai-law fix --issueId <ISSUE_ID>，随后生成可直接应用的最小补丁。",
+  "prompt.setup.claude-code": "请在 Claude Code 中为当前仓库配置两个可复用提示词：'law-audit' 与 'law-fix'。'law-audit' 运行 ai-law audit --locale zh-CN，并严格产出 ai-rule-report.json。'law-fix' 需要先获取 issueId，再运行 ai-law fix --issueId <ISSUE_ID>，然后输出最小且保持架构边界的修复建议。",
+  "prompt.setup.custom": "请在你的 AI 编程工具中为本仓库配置两个可复用动作：'law-audit' 与 'law-fix'。'law-audit'：执行 ai-law audit --locale zh-CN，仅输出符合约定的 ai-rule-report.json。'law-fix'：先询问 issueId，执行 ai-law fix --issueId <ISSUE_ID>，再根据复制出的 prompt 生成最小安全补丁。",
+  "prompt.setup.noSlashHint": "如果工具不支持真实的 slash 命令，请将上述内容保存为可复用模板、片段或快捷动作。"
 }

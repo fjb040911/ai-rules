@@ -10,7 +10,7 @@ const { readJson } = require("./utils/fs");
 const { getTemplatesRoot } = require("./utils/templates");
 
 async function runAudit(argv) {
-  const locale = parseLocaleArg(argv) || "en";
+  const locale = parseLocaleArg(argv) || (await readDefaultLocale()) || "en";
   const localeMap = await readLocaleMap(locale);
   const prompt = buildAuditPrompt(localeMap);
 
@@ -22,6 +22,7 @@ async function runAudit(argv) {
     }
     await writeClipboard(prompt);
     process.stdout.write("Prompt copied to clipboard.\n");
+    process.stdout.write("\x1b[1m\x1b[32m✅ Paste this prompt into your AI chat window to start the audit\x1b[0m\n");
   } catch (err) {
     process.stderr.write(`Clipboard copy failed: ${String(err)}\n`);
   }
@@ -55,6 +56,27 @@ async function readLocaleMap(locale) {
     }
     process.stderr.write(`Locale '${locale}' not found. Falling back to en.\n`);
     return readJson(fallbackPath);
+  }
+}
+
+async function readDefaultLocale() {
+  const configPath = path.join(process.cwd(), ".ai-rules", "rules-config.json");
+  const exists = await fileExists(configPath);
+  if (!exists) {
+    return null;
+  }
+
+  try {
+    const config = await readJson(configPath);
+    const locale =
+      config &&
+      config.i18n &&
+      typeof config.i18n.defaultLocale === "string"
+        ? config.i18n.defaultLocale
+        : null;
+    return locale;
+  } catch {
+    return null;
   }
 }
 

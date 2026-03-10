@@ -4,6 +4,11 @@ const inquirer = require("inquirer");
 const prompt = inquirer.prompt || (inquirer.default && inquirer.default.prompt);
 const { readJson } = require("./utils/fs");
 const {
+  writeProviderSlashFiles,
+  resolveProvider,
+  readLocaleMap: readSetupLocaleMap,
+} = require("./setup");
+const {
   buildTemplateChoices,
   getTemplatesRoot,
   renderRulesMarkdown,
@@ -65,6 +70,9 @@ async function runInit() {
   }
 
   process.stdout.write(".ai-rules generated.\n");
+  printSuccessBanner();
+
+  await maybeSetupSlashCommands(cwd, locale);
 }
 
 async function selectLocale(templatesRoot) {
@@ -138,6 +146,92 @@ async function fileExists(targetPath) {
   } catch {
     return false;
   }
+}
+
+async function maybeSetupSlashCommands(cwd, locale) {
+  const { enableSlash } = await prompt([
+    {
+      type: "confirm",
+      name: "enableSlash",
+      message: "Configure slash command files now?",
+      default: true,
+    },
+  ]);
+
+  if (!enableSlash) {
+    return;
+  }
+
+  const { provider } = await prompt([
+    {
+      type: "list",
+      name: "provider",
+      message: "Select AI coding tool for slash setup",
+      choices: [
+        { name: "GitHub Copilot", value: "copilot" },
+        { name: "OpenAI Codex", value: "codex" },
+        { name: "Cursor", value: "cursor" },
+        { name: "Claude Code", value: "claude-code" },
+        { name: "Custom (generic)", value: "custom" },
+      ],
+    },
+  ]);
+
+  const providerInfo = resolveProvider(provider);
+  if (!providerInfo) {
+    process.stderr.write("Skip slash setup: invalid provider.\n");
+    return;
+  }
+
+  const localeMap = await readSetupLocaleMap(locale);
+  const writtenFiles = await writeProviderSlashFiles({
+    cwd,
+    provider: providerInfo,
+    localeMap,
+    locale,
+  });
+
+  process.stdout.write("Slash command files updated:\n");
+  for (const filePath of writtenFiles) {
+    process.stdout.write(`- ${filePath}\n`);
+  }
+}
+
+function printSuccessBanner() {
+  const banner = [
+    "",
+    "┌─────────────────────────────────────────────────────────────┐",
+    "│                                                             │",
+    "│       █████╗ ██╗      ██████╗ ██╗   ██╗██╗     ███████╗    │",
+    "│      ██╔══██╗██║      ██╔══██╗██║   ██║██║     ██╔════╝    │",
+    "│      ███████║██║█████╗██████╔╝██║   ██║██║     █████╗      │",
+    "│      ██╔══██║██║╚════╝██╔══██╗██║   ██║██║     ██╔══╝      │",
+    "│      ██║  ██║██║      ██║  ██║╚██████╔╝███████╗███████╗    │",
+    "│      ╚═╝  ╚═╝╚═╝      ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚══════╝    │",
+    "│                                                             │",
+    "│              AI Rules Initialized Successfully!            │",
+    "│                                                             │",
+    "└─────────────────────────────────────────────────────────────┘",
+    "",
+    "📋 Next Steps:",
+    "",
+    "  1. Run audit to check your code:",
+    "     $ ai-law audit",
+    "",
+    "  2. Fix violations by issueId:",
+    "     $ ai-law fix --issueId <ISSUE_ID>",
+    "",
+    "  3. Configure slash commands (optional):",
+    "     $ ai-law setup --write",
+    "",
+    "  4. Get help anytime:",
+    "     $ ai-law -h",
+    "",
+    "📖 Docs: docs/design-spec-en.md | docs/design-spec-zh.md",
+    "",
+  ];
+
+  process.stdout.write(banner.join("\n"));
 }
 
 module.exports = { runInit };

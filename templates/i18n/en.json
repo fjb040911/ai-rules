@@ -361,5 +361,12 @@
   "rule.PY-OBS-601.fix": "Add trace/context/error-code fields in standardized logs.",
   "rule.PY-OBS-601.prompt.violation": "Detected insufficient logging in critical flow.",
   "rule.PY-OBS-601.prompt.requirement": "Runtime failures must be diagnosable.",
-  "rule.PY-OBS-601.prompt.solution": "Add standardized structured logs on key branches."
+  "rule.PY-OBS-601.prompt.solution": "Add standardized structured logs on key branches.",
+
+  "prompt.setup.copilot": "Create two reusable chat shortcuts for this repo in GitHub Copilot Chat: '/law-audit' and '/law-fix'. '/law-audit' should run: ai-law audit --locale en and then strictly return ai-rule-report.json in the required schema. '/law-fix' should ask for issueId first, then run: ai-law fix --issueId <ISSUE_ID>, and use the copied prompt to produce minimal patch-ready edits.",
+  "prompt.setup.codex": "Create two reusable command prompts for Codex in this repo context: '/law-audit' and '/law-fix'. '/law-audit' executes ai-law audit --locale en and outputs ai-rule-report.json only. '/law-fix' asks for issueId, executes ai-law fix --issueId <ISSUE_ID>, and returns minimal architecture-safe code changes based on the copied prompt.",
+  "prompt.setup.cursor": "Set up two reusable prompts in Cursor for this repo: 'law-audit' and 'law-fix'. 'law-audit' should run ai-law audit --locale en and output ai-rule-report.json strictly in JSON schema. 'law-fix' should ask for issueId, run ai-law fix --issueId <ISSUE_ID>, and then generate minimal patch-ready edits.",
+  "prompt.setup.claude-code": "Set up two reusable prompts for Claude Code in this repo: 'law-audit' and 'law-fix'. 'law-audit' should run ai-law audit --locale en and produce ai-rule-report.json in strict JSON schema. 'law-fix' should request issueId, run ai-law fix --issueId <ISSUE_ID>, and produce minimal, architecture-preserving patch suggestions.",
+  "prompt.setup.custom": "Configure your AI coding tool with two reusable actions in this repository: 'law-audit' and 'law-fix'. 'law-audit': run ai-law audit --locale en and output only ai-rule-report.json in the required schema. 'law-fix': ask for issueId, run ai-law fix --issueId <ISSUE_ID>, then generate the smallest safe patch from the copied prompt.",
+  "prompt.setup.noSlashHint": "If this tool does not support real slash commands, save these as reusable prompt templates, snippets, or quick actions."
 }

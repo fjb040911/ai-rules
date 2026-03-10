@@ -9,21 +9,19 @@ AI-RULES is a governance framework for AI-assisted coding. It turns human-readab
 - Supports multi-language prompt rendering
 AI-RULES also drives AI to auto-review code against defined rules, significantly reducing manual review effort in Human-in-the-Loop Audit Flow and improving code quality and consistency in long-running tasks.
 
-## Install (Local CLI)
-### Option A: Install from GitHub (recommended when npm package is unavailable)
-```bash
-npm install -g github:fjb040911/ai-rules#v0.1.0
-```
-
-### Option B: Local development install
-```bash
-cd cli
-npm install
-npm link
-```
-
 ## Quick Start
+**Requires Node.js 20.19.0 or higher.**
+
+Install AI-Rules globally:
+
 ```bash
+npm install -g github:fjb040911/ai-rules@latest
+```
+
+Then navigate to your project directory and initialize:
+
+```bash
+cd your-project
 # Initialize .ai-rules in a project
 ai-law init
 

@@ -3,6 +3,7 @@
 const { runInit } = require("./init");
 const { runAudit } = require("./audit");
 const { runFix } = require("./fix");
+const { runSetup } = require("./setup");
 const path = require("path");
 const fs = require("fs/promises");
 
@@ -16,6 +17,11 @@ async function main() {
 
   if (cmd === "init") {
     await runInit();
+    return;
+  }
+
+  if (cmd === "setup") {
+    await runSetup(process.argv.slice(3));
     return;
   }
 
@@ -37,7 +43,7 @@ async function main() {
   }
 
   process.stderr.write(
-    "Unknown command. Use: ai-law init | ai-law audit | ai-law fix\n"
+    "Unknown command. Use: ai-law init | ai-law audit | ai-law fix | ai-law setup\n"
   );
   process.exitCode = 1;
 }
@@ -59,10 +65,14 @@ function getHelpText() {
     "  audit [--locale <code>]   Generate an audit prompt and copy it to clipboard",
     "  fix --id <rule_id>        Copy the fix prompt for a rule from ai-rule-report.json",
     "  fix --issueId <issue_id>  Copy the fix prompt for a specific issue instance",
+    "  setup [--locale <code>]   Generate AI-tool setup prompt and copy it to clipboard",
+    "  setup --write             Write/update slash command files for a selected provider",
     "",
     "Options:",
     "  -h, --help                Show this help message",
     "  -l, --locale <code>       Locale for audit prompt (default: en)",
+    "  -p, --provider <name>     Setup provider: copilot|codex|cursor|claude-code|custom",
+    "      --write               Write slash command files (OpenSpec-style managed update)",
     "  -i, --id <rule_id>        Rule ID for fix command (required)",
     "      --issueId <issue_id>  Issue ID for fix command (preferred when available)",
     "",
@@ -72,6 +82,9 @@ function getHelpText() {
     "  ai-law audit --locale zh-CN",
     "  ai-law fix --id ARCH-101",
     "  ai-law fix --issueId ISSUE-001",
+    "  ai-law setup",
+    "  ai-law setup --provider cursor --locale en",
+    "  ai-law setup --provider copilot --write",
     "",
   ].join("\n");
 }
