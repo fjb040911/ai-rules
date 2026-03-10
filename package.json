@@ -1,6 +1,6 @@
 {
   "name": "ai-law",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "AI-RULES CLI for architecture-aware AI coding governance",
   "license": "MIT",
   "type": "commonjs",
