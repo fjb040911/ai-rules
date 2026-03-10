@@ -35,6 +35,20 @@ ai-law audit --locale zh-CN
 ai-law fix --issueId ISSUE-001
 ```
 
+## Demo
+
+### Audit Command
+
+<p align="center">
+	<img src="docs/imgs/audit.gif" alt="AI-LAW audit command demo" width="900" />
+</p>
+
+### Report Output
+
+<p align="center">
+	<img src="docs/imgs/report.gif" alt="AI-LAW report output demo" width="900" />
+</p>
+
 ## Project Rules Layout
 The CLI generates a .ai-rules/ folder at your project root:
 
