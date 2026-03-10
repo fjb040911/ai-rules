@@ -44,14 +44,8 @@ async function runFix(argv) {
       return;
     }
 
-    const targetRuleId = ruleId || issue.ruleId || issue.rule_id || issue.id || issue.code;
-    prompt = extractPrompt(issue);
-    if (!prompt) {
-      prompt = buildFallbackPrompt(issue, targetRuleId || "UNKNOWN-RULE");
-      process.stderr.write(
-        `Repair prompt not found in report. Generated a fallback prompt.\n`
-      );
-    }
+    const issueRuleId = ruleId || issue.ruleId || issue.rule_id || issue.id || issue.code || "UNKNOWN-RULE";
+    prompt = buildAggregateRulePrompt([issue], issueRuleId);
   } else if (all) {
     const issues = findAllIssues(report);
     if (!issues.length) {

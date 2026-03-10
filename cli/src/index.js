@@ -15,6 +15,11 @@ async function main() {
     return;
   }
 
+  if (cmd === "-v" || cmd === "--version" || cmd === "version") {
+    process.stdout.write(getVersionText() + "\n");
+    return;
+  }
+
   if (cmd === "init") {
     await runInit();
     return;
@@ -62,6 +67,7 @@ function getHelpText() {
     "",
     "Commands:",
     "  init                      Initialize .ai-rules in current directory",
+    "  version                   Show CLI version",
     "  audit [--locale <code>]   Generate an audit prompt and copy it to clipboard",
     "  fix --id <rule_id>        Copy the fix prompt for a rule from ai-rule-report.json",
     "  fix --issueId <issue_id>  Copy the fix prompt for a specific issue instance",
@@ -70,6 +76,7 @@ function getHelpText() {
     "",
     "Options:",
     "  -h, --help                Show this help message",
+    "  -v, --version             Show CLI version",
     "  -l, --locale <code>       Locale for audit prompt (default: en)",
     "  -p, --provider <name>     Setup provider: copilot|codex|cursor|claude-code|custom",
     "      --write               Write slash command files (OpenSpec-style managed update)",
@@ -78,6 +85,7 @@ function getHelpText() {
     "",
     "Examples:",
     "  ai-law init",
+    "  ai-law -v",
     "  ai-law audit",
     "  ai-law audit --locale zh-CN",
     "  ai-law fix --id ARCH-101",
@@ -87,6 +95,19 @@ function getHelpText() {
     "  ai-law setup --provider copilot --write",
     "",
   ].join("\n");
+}
+
+function getVersionText() {
+  try {
+    const packagePath = path.join(__dirname, "..", "..", "package.json");
+    const content = require(packagePath);
+    if (content && content.version) {
+      return String(content.version);
+    }
+    return "unknown";
+  } catch {
+    return "unknown";
+  }
 }
 
 async function hasAiRulesDir(cwd) {
