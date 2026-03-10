@@ -15,7 +15,7 @@ AI-RULES also drives AI to auto-review code against defined rules, significantly
 Install AI-Rules globally:
 
 ```bash
-npm install -g github:fjb040911/ai-rules#v0.2.2
+npm install -g ai-law
 ```
 
 Then navigate to your project directory and initialize:
