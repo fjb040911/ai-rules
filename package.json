@@ -14,6 +14,12 @@
     "README.md",
     "rule.md"
   ],
+  "scripts": {
+    "pack": "npm pack --dry-run",
+    "version-patch": "npm version patch",
+    "publish": "npm publish --access public",
+    "pack-and-publish": "npm run pack && npm run publish && npm view ai-law version"
+  },
   "dependencies": {
     "clipboardy": "^3.0.0",
     "inquirer": "^9.2.21"

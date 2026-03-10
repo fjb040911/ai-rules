@@ -1,20 +1,16 @@
 const path = require("path");
 const fs = require("fs/promises");
-const clipboardy = require("clipboardy");
 const { readJson } = require("./utils/fs");
+const { writeOutput } = require("./utils/output");
 
-const writeClipboard =
-  (clipboardy.write && clipboardy.write.bind(clipboardy)) ||
-  (clipboardy.default && clipboardy.default.write
-    ? clipboardy.default.write.bind(clipboardy.default)
-    : null);
 
 async function runFix(argv) {
   const issueId = parseIssueIdArg(argv);
   const ruleId = parseIdArg(argv);
-  if (!issueId && !ruleId) {
+  const all = parseAllArg(argv);
+  if (!issueId && !ruleId && !all) {
     process.stderr.write("Missing required identifier. Use --issueId <issue_id> or --id <rule_id>.\n");
-    process.stderr.write("Usage: ai-law fix --issueId <issue_id> | --id <rule_id>\n");
+    process.stderr.write("Usage: ai-law fix --issueId <issue_id> | --id <rule_id> | --all\n");
     process.exitCode = 1;
     return;
   }
@@ -39,39 +35,44 @@ async function runFix(argv) {
     return;
   }
 
-  const issue = issueId
-    ? findIssueByIssueId(report, issueId)
-    : selectBestIssue(findIssuesByRuleId(report, ruleId));
-
-  if (!issue) {
-    if (issueId) {
+  let prompt = "";
+  if (issueId) {
+    const issue = findIssueByIssueId(report, issueId);
+    if (!issue) {
       process.stderr.write(`No issue found for issueId: ${issueId}\n`);
-    } else {
+      process.exitCode = 1;
+      return;
+    }
+
+    const targetRuleId = ruleId || issue.ruleId || issue.rule_id || issue.id || issue.code;
+    prompt = extractPrompt(issue);
+    if (!prompt) {
+      prompt = buildFallbackPrompt(issue, targetRuleId || "UNKNOWN-RULE");
+      process.stderr.write(
+        `Repair prompt not found in report. Generated a fallback prompt.\n`
+      );
+    }
+  } else if (all) {
+    const issues = findAllIssues(report);
+    if (!issues.length) {
+      process.stderr.write("No issues found in report.\n");
+      process.exitCode = 1;
+      return;
+    }
+
+    prompt = buildAggregateAllPrompt(issues);
+  } else {
+    const issues = findIssuesByRuleId(report, ruleId);
+    if (!issues.length) {
       process.stderr.write(`No fix prompt found for rule id: ${ruleId}\n`);
+      process.exitCode = 1;
+      return;
     }
-    process.exitCode = 1;
-    return;
+
+    prompt = buildAggregateRulePrompt(issues, ruleId);
   }
 
-  const targetRuleId = ruleId || issue.ruleId || issue.rule_id || issue.id || issue.code;
-  let prompt = extractPrompt(issue);
-  if (!prompt) {
-    prompt = buildFallbackPrompt(issue, targetRuleId || "UNKNOWN-RULE");
-    process.stderr.write(
-      `Repair prompt not found in report. Generated a fallback prompt.\n`
-    );
-  }
-
-  process.stdout.write(prompt + "\n");
-  try {
-    if (!writeClipboard) {
-      throw new Error("clipboardy.write is not available");
-    }
-    await writeClipboard(prompt);
-    process.stdout.write("Prompt copied to clipboard.\n");
-  } catch (err) {
-    process.stderr.write(`Clipboard copy failed: ${String(err)}\n`);
-  }
+  writeOutput(prompt);
 }
 
 function parseIdArg(argv) {
@@ -92,6 +93,10 @@ function parseIssueIdArg(argv) {
     }
   }
   return null;
+}
+
+function parseAllArg(argv) {
+  return argv.includes("--all") || argv.includes("-all");
 }
 
 function findIssueByIssueId(report, issueId) {
@@ -136,9 +141,114 @@ function findIssuesByRuleId(report, ruleId) {
   });
 }
 
+function findAllIssues(report) {
+  const candidates = [];
+  if (Array.isArray(report)) {
+    candidates.push(...report);
+  }
+  if (Array.isArray(report.violations)) {
+    candidates.push(...report.violations);
+  }
+  if (Array.isArray(report.issues)) {
+    candidates.push(...report.issues);
+  }
+  if (Array.isArray(report.results)) {
+    candidates.push(...report.results);
+  }
+
+  return candidates;
+}
+
 function selectBestIssue(issues) {
   const withPrompt = issues.find((issue) => extractPrompt(issue));
   return withPrompt || issues[0];
+}
+
+function buildAggregateRulePrompt(issues, ruleId) {
+  const lines = [
+    `You violated rule ${ruleId} in multiple locations.`,
+    `Task: Fix all violations of ${ruleId} in this report.`,
+    "Expected output: step-by-step fix plan + patch-ready code edits.",
+    "",
+    "Violations:",
+  ];
+
+  for (const issue of issues) {
+    const issueId = issue.issueId || issue.issue_id || "UNKNOWN-ISSUE";
+    const location = formatLocation(issue);
+    const description =
+      issue.description ||
+      issue.message ||
+      issue.reason ||
+      "No detailed description was provided in the report.";
+    const suggestion =
+      issue.fixSuggestion ||
+      issue.suggestion ||
+      (issue.repair && issue.repair.suggestion) ||
+      "Refactor this code path to satisfy the rule intent and architecture boundaries.";
+    const prompt = extractPrompt(issue);
+
+    lines.push(`- IssueId: ${issueId}`);
+    if (location) {
+      lines.push(`  Location: ${location}`);
+    }
+    lines.push(`  Issue: ${description}`);
+    lines.push(`  Suggested direction: ${suggestion}`);
+    if (prompt) {
+      lines.push("  Repair prompt:");
+      lines.push(indentBlock(prompt, 4));
+    }
+  }
+
+  return lines.join("\n");
+}
+
+function buildAggregateAllPrompt(issues) {
+  const lines = [
+    "You have multiple rule violations in this report.",
+    "Task: Fix all violations across all rules.",
+    "Expected output: step-by-step fix plan + patch-ready code edits.",
+    "",
+    "Violations:",
+  ];
+
+  for (const issue of issues) {
+    const issueId = issue.issueId || issue.issue_id || "UNKNOWN-ISSUE";
+    const ruleId = issue.ruleId || issue.rule_id || issue.id || issue.code || "UNKNOWN-RULE";
+    const location = formatLocation(issue);
+    const description =
+      issue.description ||
+      issue.message ||
+      issue.reason ||
+      "No detailed description was provided in the report.";
+    const suggestion =
+      issue.fixSuggestion ||
+      issue.suggestion ||
+      (issue.repair && issue.repair.suggestion) ||
+      "Refactor this code path to satisfy the rule intent and architecture boundaries.";
+    const prompt = extractPrompt(issue);
+
+    lines.push(`- Rule: ${ruleId} | IssueId: ${issueId}`);
+    if (location) {
+      lines.push(`  Location: ${location}`);
+    }
+    lines.push(`  Issue: ${description}`);
+    lines.push(`  Suggested direction: ${suggestion}`);
+    if (prompt) {
+      lines.push("  Repair prompt:");
+      lines.push(indentBlock(prompt, 4));
+    }
+  }
+
+  return lines.join("\n");
+}
+
+function indentBlock(text, spaces) {
+  const prefix = " ".repeat(spaces);
+  return text
+    .split("\n")
+    .map((line) => `${prefix}${line}`)
+    .join("\n");
 }
 
 function extractPrompt(issue) {

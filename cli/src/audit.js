@@ -1,11 +1,6 @@
 const path = require("path");
 const fs = require("fs/promises");
-const clipboardy = require("clipboardy");
-const writeClipboard =
-  (clipboardy.write && clipboardy.write.bind(clipboardy)) ||
-  (clipboardy.default && clipboardy.default.write
-    ? clipboardy.default.write.bind(clipboardy.default)
-    : null);
+const { writeOutput } = require("./utils/output");
 const { readJson } = require("./utils/fs");
 const { getTemplatesRoot } = require("./utils/templates");
 
@@ -13,19 +8,7 @@ async function runAudit(argv) {
   const locale = parseLocaleArg(argv) || (await readDefaultLocale()) || "en";
   const localeMap = await readLocaleMap(locale);
   const prompt = buildAuditPrompt(localeMap);
-
-  process.stdout.write(prompt + "\n");
-
-  try {
-    if (!writeClipboard) {
-      throw new Error("clipboardy.write is not available");
-    }
-    await writeClipboard(prompt);
-    process.stdout.write("Prompt copied to clipboard.\n");
-    process.stdout.write("\x1b[1m\x1b[32m✅ Paste this prompt into your AI chat window to start the audit\x1b[0m\n");
-  } catch (err) {
-    process.stderr.write(`Clipboard copy failed: ${String(err)}\n`);
-  }
+  writeOutput(prompt);
 }
 
 function parseLocaleArg(argv) {

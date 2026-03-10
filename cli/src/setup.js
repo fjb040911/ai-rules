@@ -1,16 +1,11 @@
 const path = require("path");
 const fs = require("fs/promises");
 const inquirer = require("inquirer");
-const clipboardy = require("clipboardy");
 const { readJson } = require("./utils/fs");
 const { getTemplatesRoot } = require("./utils/templates");
+const { writeOutput } = require("./utils/output");
 
 const prompt = inquirer.prompt || (inquirer.default && inquirer.default.prompt);
-const writeClipboard =
-  (clipboardy.write && clipboardy.write.bind(clipboardy)) ||
-  (clipboardy.default && clipboardy.default.write
-    ? clipboardy.default.write.bind(clipboardy.default)
-    : null);
 
 const MANAGED_START = "<!-- AI-LAW:START -->";
 const MANAGED_END = "<!-- AI-LAW:END -->";
@@ -78,19 +73,8 @@ async function runSetup(argv) {
     process.stdout.write("\n");
   }
 
-  process.stdout.write(`Provider: ${provider.label}\n\n`);
-  process.stdout.write(setupPrompt + "\n");
-
-  try {
-    if (!writeClipboard) {
-      throw new Error("clipboardy.write is not available");
-    }
-    await writeClipboard(setupPrompt);
-    process.stdout.write("Setup prompt copied to clipboard.\n");
-    process.stdout.write("\x1b[1m\x1b[32m✅ Paste this prompt into your AI chat window to configure slash commands\x1b[0m\n");
-  } catch (err) {
-    process.stderr.write(`Clipboard copy failed: ${String(err)}\n`);
-  }
+  process.stdout.write(`Provider: ${provider.label}\n`);
+  writeOutput(setupPrompt);
 }
 
 function parseLocaleArg(argv) {
