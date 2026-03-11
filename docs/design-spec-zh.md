@@ -26,7 +26,7 @@ AI-RULES 还能促使 AI 按既定规则自动 Review 代码，在 Human-in-the-
 若 npm 包暂未发布，可直接通过 GitHub 安装：
 
 ```bash
-npm install -g github:fjb040911/ai-rules#v0.1.0
+npm install -g ai-law
 ```
 
 ```bash
@@ -175,6 +175,8 @@ context:
 - description
 - fixSuggestion
 - repairPrompt
+
+报告包含了违反的规则 ID、文件与行号位置、精准的 repairPrompt，并按违规级别分组。
 
 ## 链接
 - English design spec: [docs/design-spec-en.md](docs/design-spec-en.md)

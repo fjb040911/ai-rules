@@ -49,6 +49,8 @@ ai-law fix --issueId ISSUE-001
 	<img src="docs/imgs/report.gif" alt="AI-LAW report output demo" width="900" />
 </p>
 
+- English: The report includes violated rule IDs, file and line locations, precise repair prompts, and grouping by severity level.
+
 ## Project Rules Layout
 The CLI generates a .ai-rules/ folder at your project root:
 

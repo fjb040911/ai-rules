@@ -1,8 +1,16 @@
 {
   "name": "ai-law",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "AI-RULES CLI for architecture-aware AI coding governance",
   "license": "MIT",
+  "homepage": "https://github.com/fjb040911/ai-rules#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fjb040911/ai-rules.git"
+  },
+  "bugs": {
+    "url": "https://github.com/fjb040911/ai-rules/issues"
+  },
   "type": "commonjs",
   "bin": {
     "ai-law": "cli/src/index.js"
@@ -18,7 +26,7 @@
     "pack": "npm pack --dry-run",
     "version-patch": "npm version patch",
     "publish": "npm publish --access public",
-    "pack-and-publish": "npm run pack && npm run publish && npm view ai-law version"
+    "pack-and-publish": "npm run pack && npm run publish"
   },
   "dependencies": {
     "clipboardy": "^3.0.0",

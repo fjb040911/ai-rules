@@ -26,7 +26,7 @@ This repository ships a Node.js CLI under cli/.
 If the npm package is not published yet, install directly from GitHub:
 
 ```bash
-npm install -g github:fjb040911/ai-rules#v0.1.0
+npm install -g ai-law
 ```
 
 ```bash
@@ -94,6 +94,8 @@ The audit prompt requests ai-rule-report.json with per-violation issueId and rep
 - description
 - fixSuggestion
 - repairPrompt
+
+The report includes violated rule IDs, file and line locations, precise repair prompts, and grouping by severity level.
 
 ## Links
 - Design spec (中文): [docs/design-spec-zh.md](docs/design-spec-zh.md)
