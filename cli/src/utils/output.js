@@ -1,10 +1,16 @@
-const clipboardy = require("clipboardy");
+let clipboardy = null;
+try {
+  clipboardy = require("clipboardy");
+} catch {
+  clipboardy = null;
+}
 
-const writeClipboard =
-    (clipboardy.write && clipboardy.write.bind(clipboardy)) ||
+const writeClipboard = clipboardy
+  ? (clipboardy.write && clipboardy.write.bind(clipboardy)) ||
     (clipboardy.default && clipboardy.default.write
       ? clipboardy.default.write.bind(clipboardy.default)
-      : null);
+      : null)
+  : null;
 
 function writeOutput(prompt) {
   const separator = "==== AI-LAW PROMPT ====";

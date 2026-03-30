@@ -1,6 +1,6 @@
 {
   "name": "ai-law",
-  "version": "0.2.6",
+  "version": "0.3.6",
   "description": "AI-RULES CLI for architecture-aware AI coding governance",
   "license": "MIT",
   "homepage": "https://github.com/fjb040911/ai-rules#readme",
@@ -23,6 +23,7 @@
     "rule.md"
   ],
   "scripts": {
+    "test": "node --test",
     "pack": "npm pack --dry-run",
     "version-patch": "npm version patch",
     "publish": "npm publish --access public",

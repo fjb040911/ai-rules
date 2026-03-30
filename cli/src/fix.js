@@ -2,12 +2,16 @@ const path = require("path");
 const fs = require("fs/promises");
 const { readJson } = require("./utils/fs");
 const { writeOutput } = require("./utils/output");
-
+const { loadConfig } = require("./core/config/load-config");
+const { parseRules } = require("./core/rules/parse-rules");
+const { normalizeReport } = require("./core/report/normalize");
 
 async function runFix(argv) {
   const issueId = parseIssueIdArg(argv);
   const ruleId = parseIdArg(argv);
   const all = parseAllArg(argv);
+  const groupByRule = argv.includes("--group-by-rule");
+
   if (!issueId && !ruleId && !all) {
     process.stderr.write("Missing required identifier. Use --issueId <issue_id> or --id <rule_id>.\n");
     process.stderr.write("Usage: ai-law fix --issueId <issue_id> | --id <rule_id> | --all\n");
@@ -19,21 +23,32 @@ async function runFix(argv) {
   const reportPath = path.join(cwd, "ai-rule-report.json");
   const exists = await fileExists(reportPath);
   if (!exists) {
-    process.stderr.write(
-      "ai-rule-report.json not found. Run: ai-law audit\n"
-    );
+    process.stderr.write("ai-rule-report.json not found. Run: ai-law audit\n");
     process.exitCode = 1;
     return;
   }
 
-  let report;
+  let rawReport;
   try {
-    report = await readJson(reportPath);
+    rawReport = await readJson(reportPath);
   } catch (err) {
     process.stderr.write(`Failed to read report: ${String(err)}\n`);
     process.exitCode = 1;
     return;
   }
+
+  const normalized = normalizeReport(rawReport);
+  if (normalized.findings.some((item) => item.level === "error")) {
+    for (const finding of normalized.findings) {
+      const prefix = finding.level === "error" ? "ERROR" : "WARN";
+      process.stderr.write(`[${prefix}] ${finding.message}\n`);
+    }
+    process.exitCode = 1;
+    return;
+  }
+
+  const report = normalized.report;
+  const projectRules = await maybeLoadProjectRules(cwd);
 
   let prompt = "";
   if (issueId) {
@@ -44,8 +59,8 @@ async function runFix(argv) {
       return;
     }
 
-    const issueRuleId = ruleId || issue.ruleId || issue.rule_id || issue.id || issue.code || "UNKNOWN-RULE";
-    prompt = buildAggregateRulePrompt([issue], issueRuleId);
+    const issueRuleId = ruleId || issue.ruleId || "UNKNOWN-RULE";
+    prompt = buildAggregateRulePrompt([issue], issueRuleId, projectRules);
   } else if (all) {
     const issues = findAllIssues(report);
     if (!issues.length) {
@@ -54,7 +69,7 @@ async function runFix(argv) {
       return;
     }
 
-    prompt = buildAggregateAllPrompt(issues);
+    prompt = buildAggregateAllPrompt(issues, projectRules, groupByRule);
   } else {
     const issues = findIssuesByRuleId(report, ruleId);
     if (!issues.length) {
@@ -63,7 +78,7 @@ async function runFix(argv) {
       return;
     }
 
-    prompt = buildAggregateRulePrompt(issues, ruleId);
+    prompt = buildAggregateRulePrompt(issues, ruleId, projectRules);
   }
 
   writeOutput(prompt);
@@ -71,8 +86,7 @@ async function runFix(argv) {
 
 function parseIdArg(argv) {
   for (let i = 0; i < argv.length; i += 1) {
-    const arg = argv[i];
-    if (arg === "--id" || arg === "-i") {
+    if (argv[i] === "--id" || argv[i] === "-i") {
       return argv[i + 1];
     }
   }
@@ -81,8 +95,7 @@ function parseIdArg(argv) {
 
 function parseIssueIdArg(argv) {
   for (let i = 0; i < argv.length; i += 1) {
-    const arg = argv[i];
-    if (arg === "--issueId") {
+    if (argv[i] === "--issueId") {
       return argv[i + 1];
     }
   }
@@ -94,232 +107,207 @@ function parseAllArg(argv) {
 }
 
 function findIssueByIssueId(report, issueId) {
-  const candidates = [];
-  if (Array.isArray(report)) {
-    candidates.push(...report);
-  }
-  if (Array.isArray(report.violations)) {
-    candidates.push(...report.violations);
-  }
-  if (Array.isArray(report.issues)) {
-    candidates.push(...report.issues);
-  }
-  if (Array.isArray(report.results)) {
-    candidates.push(...report.results);
-  }
-
-  return candidates.find((item) => {
-    const id = item.issueId || item.issue_id;
-    return id === issueId;
-  });
+  return findAllIssues(report).find((item) => item.issueId === issueId);
 }
 
 function findIssuesByRuleId(report, ruleId) {
-  const candidates = [];
-  if (Array.isArray(report)) {
-    candidates.push(...report);
-  }
-  if (Array.isArray(report.violations)) {
-    candidates.push(...report.violations);
-  }
-  if (Array.isArray(report.issues)) {
-    candidates.push(...report.issues);
-  }
-  if (Array.isArray(report.results)) {
-    candidates.push(...report.results);
-  }
-
-  return candidates.filter((item) => {
-    const id = item.ruleId || item.rule_id || item.id || item.code;
-    return id === ruleId;
-  });
+  return findAllIssues(report).filter((item) => item.ruleId === ruleId);
 }
 
 function findAllIssues(report) {
-  const candidates = [];
   if (Array.isArray(report)) {
-    candidates.push(...report);
+    return report;
   }
   if (Array.isArray(report.violations)) {
-    candidates.push(...report.violations);
+    return report.violations;
   }
   if (Array.isArray(report.issues)) {
-    candidates.push(...report.issues);
+    return report.issues;
   }
   if (Array.isArray(report.results)) {
-    candidates.push(...report.results);
+    return report.results;
   }
-
-  return candidates;
+  return [];
 }
 
-function selectBestIssue(issues) {
-  const withPrompt = issues.find((issue) => extractPrompt(issue));
-  return withPrompt || issues[0];
-}
-
-function buildAggregateRulePrompt(issues, ruleId) {
+function buildAggregateRulePrompt(issues, ruleId, projectRules) {
+  const rule = getRule(projectRules, ruleId);
   const lines = [
-    `You violated rule ${ruleId} in multiple locations.`,
-    `Task: Fix all violations of ${ruleId} in this report.`,
-    "Expected output: step-by-step fix plan + patch-ready code edits.",
+    `You need to fix violations of rule ${ruleId}.`,
+    `Task: Fix all reported instances of ${ruleId} while preserving architecture boundaries and existing behavior.`,
+    "Expected output: short fix plan + minimal patch-ready code edits + tests when behavior changes.",
     "",
-    "Violations:",
+    "Rule context:",
   ];
 
-  for (const issue of issues) {
-    const issueId = issue.issueId || issue.issue_id || "UNKNOWN-ISSUE";
-    const location = formatLocation(issue);
-    const description =
-      issue.description ||
-      issue.message ||
-      issue.reason ||
-      "No detailed description was provided in the report.";
-    const suggestion =
-      issue.fixSuggestion ||
-      issue.suggestion ||
-      (issue.repair && issue.repair.suggestion) ||
-      "Refactor this code path to satisfy the rule intent and architecture boundaries.";
-    const prompt = extractPrompt(issue);
+  appendRuleContext(lines, rule, ruleId);
+  lines.push("", "Violations:");
 
-    lines.push(`- IssueId: ${issueId}`);
+  for (const issue of issues) {
+    const location = formatLocation(issue);
+    const prompt = issue.repairPrompt || buildFallbackPrompt(issue, ruleId, rule);
+
+    lines.push(`- IssueId: ${issue.issueId}`);
     if (location) {
       lines.push(`  Location: ${location}`);
     }
-    lines.push(`  Issue: ${description}`);
-    lines.push(`  Suggested direction: ${suggestion}`);
-    if (prompt) {
-      lines.push("  Repair prompt:");
-      lines.push(indentBlock(prompt, 4));
+    if (issue.confidence != null) {
+      lines.push(`  Confidence: ${issue.confidence}`);
     }
+    lines.push(`  Issue: ${issue.description}`);
+    lines.push(`  Suggested direction: ${issue.fixSuggestion || fallbackSuggestion(rule)}`);
+    if (issue.snippet) {
+      lines.push(`  Snippet: ${issue.snippet}`);
+    }
+    if (issue.evidence && (issue.evidence.source || issue.evidence.matchedBy)) {
+      lines.push(`  Evidence: source=${issue.evidence.source || "unknown"}, matchedBy=${issue.evidence.matchedBy || "unknown"}`);
+    }
+    lines.push("  Repair prompt:");
+    lines.push(indentBlock(prompt, 4));
   }
 
   return lines.join("\n");
 }
 
-function buildAggregateAllPrompt(issues) {
+function buildAggregateAllPrompt(issues, projectRules, groupByRule) {
+  if (groupByRule) {
+    return Object.entries(groupIssuesByRule(issues))
+      .map(([ruleId, group]) => buildAggregateRulePrompt(group, ruleId, projectRules))
+      .join("\n\n");
+  }
+
   const lines = [
     "You have multiple rule violations in this report.",
-    "Task: Fix all violations across all rules.",
-    "Expected output: step-by-step fix plan + patch-ready code edits.",
+    "Task: Fix all violations across all rules with minimal, safe edits.",
+    "Expected output: short fix plan + grouped patch-ready code edits + tests when needed.",
     "",
     "Violations:",
   ];
 
   for (const issue of issues) {
-    const issueId = issue.issueId || issue.issue_id || "UNKNOWN-ISSUE";
-    const ruleId = issue.ruleId || issue.rule_id || issue.id || issue.code || "UNKNOWN-RULE";
+    const rule = getRule(projectRules, issue.ruleId);
+    const prompt = issue.repairPrompt || buildFallbackPrompt(issue, issue.ruleId, rule);
     const location = formatLocation(issue);
-    const description =
-      issue.description ||
-      issue.message ||
-      issue.reason ||
-      "No detailed description was provided in the report.";
-    const suggestion =
-      issue.fixSuggestion ||
-      issue.suggestion ||
-      (issue.repair && issue.repair.suggestion) ||
-      "Refactor this code path to satisfy the rule intent and architecture boundaries.";
-    const prompt = extractPrompt(issue);
 
-    lines.push(`- Rule: ${ruleId} | IssueId: ${issueId}`);
+    lines.push(`- Rule: ${issue.ruleId} | IssueId: ${issue.issueId}`);
     if (location) {
       lines.push(`  Location: ${location}`);
     }
-    lines.push(`  Issue: ${description}`);
-    lines.push(`  Suggested direction: ${suggestion}`);
-    if (prompt) {
-      lines.push("  Repair prompt:");
-      lines.push(indentBlock(prompt, 4));
+    lines.push(`  Issue: ${issue.description}`);
+    lines.push(`  Suggested direction: ${issue.fixSuggestion || fallbackSuggestion(rule)}`);
+    if (issue.snippet) {
+      lines.push(`  Snippet: ${issue.snippet}`);
     }
+    lines.push("  Repair prompt:");
+    lines.push(indentBlock(prompt, 4));
   }
 
   return lines.join("\n");
 }
 
-function indentBlock(text, spaces) {
-  const prefix = " ".repeat(spaces);
-  return text
-    .split("\n")
-    .map((line) => `${prefix}${line}`)
-    .join("\n");
+function appendRuleContext(lines, rule, ruleId) {
+  if (!rule) {
+    lines.push(`- Rule metadata for ${ruleId} was not found locally.`);
+    return;
+  }
+
+  lines.push(`- severity: ${rule.severity || "unknown"}`);
+  lines.push(`- scope: ${rule.scope || "unknown"}`);
+  lines.push(`- intent: ${rule.intent || "unknown"}`);
+  lines.push(`- requirement: ${(rule.prompt && rule.prompt.requirement) || "unknown"}`);
+  lines.push(`- fix guidance: ${rule.fix || "unknown"}`);
+  if (rule.context && rule.context.length > 0) {
+    lines.push(`- context assets: ${rule.context.join(", ")}`);
+  }
 }
 
-function extractPrompt(issue) {
-  if (!issue || typeof issue !== "object") {
-    return null;
-  }
-  if (typeof issue.repairPrompt === "string") {
-    return issue.repairPrompt;
-  }
-  if (typeof issue.fixPrompt === "string") {
-    return issue.fixPrompt;
-  }
-  if (typeof issue.prompt === "string") {
-    return issue.prompt;
-  }
-  if (issue.prompt && typeof issue.prompt.repair === "string") {
-    return issue.prompt.repair;
-  }
-  if (issue.repair && typeof issue.repair.prompt === "string") {
-    return issue.repair.prompt;
-  }
-  if (typeof issue.suggestion === "string") {
-    return issue.suggestion;
-  }
-  return null;
-}
-
-function buildFallbackPrompt(issue, ruleId) {
+function buildFallbackPrompt(issue, ruleId, rule) {
   const location = formatLocation(issue);
-  const description =
-    issue.description ||
-    issue.message ||
-    issue.reason ||
-    "No detailed description was provided in the report.";
-  const suggestion =
-    issue.fixSuggestion ||
-    issue.suggestion ||
-    (issue.repair && issue.repair.suggestion) ||
-    "Refactor this code path to satisfy the rule intent and architecture boundaries.";
-  const context = extractContext(issue);
+  const context = mergeContexts(issue, rule);
 
   return [
     `You violated rule ${ruleId}.`,
+    rule && rule.intent ? `Rule intent: ${rule.intent}` : null,
+    rule && rule.prompt && rule.prompt.requirement ? `Requirement: ${rule.prompt.requirement}` : null,
     location ? `Location: ${location}.` : null,
-    `Issue: ${description}`,
-    `Task: Provide a minimal patch that fixes this violation and keeps existing architecture boundaries intact.`,
-    `Expected output: step-by-step fix plan + patch-ready code edits.`,
-    `Suggested direction: ${suggestion}`,
+    issue.snippet ? `Snippet: ${issue.snippet}` : null,
+    `Issue: ${issue.description}`,
+    "Task: Provide a minimal patch that fixes this violation and keeps existing architecture boundaries intact.",
+    "Expected output: short step-by-step fix plan + patch-ready code edits.",
+    `Suggested direction: ${issue.fixSuggestion || fallbackSuggestion(rule)}`,
+    rule && rule.fix ? `Rule fix guidance: ${rule.fix}` : null,
     context ? `Available context: ${context}` : null,
   ]
     .filter(Boolean)
     .join("\n");
 }
 
-function formatLocation(issue) {
-  const file = issue.file || issue.filePath || issue.path;
-  const line = issue.line || issue.lineNumber || issue.row;
-  if (file && line) {
-    return `${file}:${line}`;
+function mergeContexts(issue, rule) {
+  const values = [];
+  for (const entry of issue.context || []) {
+    if (!values.includes(entry)) {
+      values.push(entry);
+    }
   }
-  if (file) {
-    return file;
+  for (const entry of (rule && rule.context) || []) {
+    if (!values.includes(entry)) {
+      values.push(entry);
+    }
   }
-  return null;
+  return values.length > 0 ? values.join(", ") : null;
 }
 
-function extractContext(issue) {
-  if (Array.isArray(issue.context)) {
-    return issue.context.join(", ");
+function fallbackSuggestion(rule) {
+  return rule && rule.fix
+    ? rule.fix
+    : "Refactor this code path to satisfy the rule intent and architecture boundaries.";
+}
+
+function formatLocation(issue) {
+  if (issue.file && issue.line) {
+    return `${issue.file}:${issue.line}`;
   }
-  if (Array.isArray(issue.assets)) {
-    return issue.assets.join(", ");
+  return issue.file || null;
+}
+
+function indentBlock(text, spaces) {
+  const prefix = " ".repeat(spaces);
+  return String(text)
+    .split("\n")
+    .map((line) => `${prefix}${line}`)
+    .join("\n");
+}
+
+function getRule(projectRules, ruleId) {
+  return projectRules.get(ruleId) || null;
+}
+
+function groupIssuesByRule(issues) {
+  const groups = {};
+  for (const issue of issues) {
+    if (!groups[issue.ruleId]) {
+      groups[issue.ruleId] = [];
+    }
+    groups[issue.ruleId].push(issue);
   }
-  if (typeof issue.context === "string") {
-    return issue.context;
+  return groups;
+}
+
+async function maybeLoadProjectRules(cwd) {
+  const configPath = path.join(cwd, ".ai-rules", "rules-config.json");
+  const exists = await fileExists(configPath);
+  if (!exists) {
+    return new Map();
   }
-  return null;
+
+  try {
+    const config = await loadConfig(configPath);
+    const rulesPath = path.join(cwd, ".ai-rules", config.rulesFile || ".ai-rules.md");
+    const rules = await parseRules(rulesPath);
+    return new Map(rules.map((rule) => [rule.id, rule]));
+  } catch {
+    return new Map();
+  }
 }
 
 async function fileExists(targetPath) {

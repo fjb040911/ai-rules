@@ -3,11 +3,45 @@ const fs = require("fs/promises");
 const { writeOutput } = require("./utils/output");
 const { readJson } = require("./utils/fs");
 const { getTemplatesRoot } = require("./utils/templates");
+const { loadConfig } = require("./core/config/load-config");
+const { parseRules } = require("./core/rules/parse-rules");
+const { validateRules } = require("./core/rules/validate-rules");
+const { collectEvidence } = require("./core/evidence/collect");
+const { buildAuditPrompt } = require("./core/prompt/build-audit-prompt");
+const { getReportSchemaText } = require("./core/report/schema");
 
 async function runAudit(argv) {
   const locale = parseLocaleArg(argv) || (await readDefaultLocale()) || "en";
   const localeMap = await readLocaleMap(locale);
-  const prompt = buildAuditPrompt(localeMap);
+  const outputJson = argv.includes("--json");
+  const dumpContext = argv.includes("--dump-context");
+  const context = await buildAuditContext({ cwd: process.cwd(), localeMap });
+
+  if (context.findings.some((item) => item.level === "error")) {
+    for (const finding of context.findings) {
+      const prefix = finding.level === "error" ? "ERROR" : "WARN";
+      process.stderr.write(`[${prefix}] ${finding.message}\n`);
+    }
+    process.exitCode = 1;
+    return;
+  }
+
+  if (dumpContext) {
+    await writeAuditContext(process.cwd(), context);
+  }
+
+  if (outputJson) {
+    process.stdout.write(JSON.stringify(context, null, 2) + "\n");
+    return;
+  }
+
+  const prompt = buildAuditPrompt({
+    config: context.config,
+    rules: context.rules,
+    evidence: context.evidence,
+    localeMap,
+    reportSchemaText: getReportSchemaText(),
+  });
   writeOutput(prompt);
 }
 
@@ -50,7 +84,7 @@ async function readDefaultLocale() {
   }
 
   try {
-    const config = await readJson(configPath);
+    const config = await loadConfig(configPath);
     const locale =
       config &&
       config.i18n &&
@@ -63,13 +97,38 @@ async function readDefaultLocale() {
   }
 }
 
-function buildAuditPrompt(localeMap) {
-  const key = "prompt.audit.cli";
-  return resolve(localeMap, key);
+async function buildAuditContext({ cwd, localeMap }) {
+  const configPath = path.join(cwd, ".ai-rules", "rules-config.json");
+  const config = await loadConfig(configPath);
+  const rulesFile = config.rulesFile || ".ai-rules.md";
+  const rulesPath = path.join(cwd, ".ai-rules", rulesFile);
+  const rules = await parseRules(rulesPath);
+  const findings = validateRules({ rules, config });
+  const evidence = await collectEvidence({ cwd, config, rules });
+
+  return {
+    version: "0.3",
+    generatedAt: new Date().toISOString(),
+    locale: inferLocale(config, localeMap),
+    config,
+    rules,
+    evidence,
+    findings,
+  };
 }
 
-function resolve(localeMap, key) {
-  return localeMap[key] || key;
+async function writeAuditContext(cwd, context) {
+  const cacheDir = path.join(cwd, ".ai-rules", "cache");
+  await fs.mkdir(cacheDir, { recursive: true });
+  await fs.writeFile(
+    path.join(cacheDir, "audit-context.json"),
+    JSON.stringify(context, null, 2) + "\n",
+    "utf8"
+  );
+}
+
+function inferLocale(config) {
+  return (config.i18n && config.i18n.defaultLocale) || "en";
 }
 
 async function fileExists(targetPath) {
