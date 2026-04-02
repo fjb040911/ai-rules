@@ -12,6 +12,42 @@ AI-RULES is a rule-aware CLI for AI-assisted coding governance. It turns project
 - Normalizes and validates `ai-rule-report.json`
 - Generates stronger fix prompts using both the report and local rule metadata
 
+## High-Value Built-In Coverage
+
+Current templates already cover a first batch of high-priority engineering rules in addition to the original architecture baseline.
+
+### Frontend / React / Vue
+
+- UI code must not call network or data layers directly
+- Hooks must follow React hook call rules
+- React lists should not use array index as `key`
+- React effect-driven remote requests should use stable dependency control
+- Vue `computed` must stay pure
+- Vue props must not be mutated directly
+- Vue lists should not use loop index as `:key`
+- Direct DOM access in Vue components is discouraged
+
+### Python Base / FastAPI
+
+- Bare `except` and broad swallowed exceptions are discouraged
+- Mutable default arguments are flagged
+- External HTTP calls should define explicit timeouts
+- FastAPI routes should not access repositories or DB sessions directly
+- FastAPI endpoints should use Pydantic input models
+- FastAPI endpoints should declare explicit `response_model`
+- List-style FastAPI endpoints should enforce pagination or limit bounds
+- Async paths should avoid blocking HTTP clients and `time.sleep`
+
+### Java / Spring
+
+- Controllers should not depend on repositories directly
+- Controllers should stay thin and avoid business branching/orchestration
+- `@Valid` should guard `@RequestBody` inputs
+- Overly permissive CORS is flagged
+- Write paths should define transaction boundaries
+- `@Transactional` should not live on controllers
+- Write-oriented service logic should keep explicit transaction semantics
+
 ## Current Scope
 
 AI-RULES is not a full static analysis engine yet.
@@ -207,6 +243,11 @@ Current support in the CLI:
 - `detect.semantic`: AI-only for now
 
 This means the CLI can attach concrete local evidence for some rules, while still allowing AI-guided review for higher-level semantic constraints.
+
+The current templates intentionally mix:
+
+- fast local rules for obvious anti-patterns
+- semantic AI-guided rules for higher-level architectural or transactional reasoning
 
 ## Report Shape
 

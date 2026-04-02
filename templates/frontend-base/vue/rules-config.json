@@ -14,7 +14,9 @@
   "enabledRuleIds": [
     "VUE-301",
     "VUE-302",
-    "VUE-303"
+    "VUE-303",
+    "VUE-304",
+    "VUE-305"
   ],
   "scopes": [
     "vue"

@@ -1,0 +1,5 @@
+{
+  "hasCompletedOnboarding": true,
+  "primaryModel": "Qwen3.5-27B-8bit",
+  "apiBaseUrl": "http://127.0.0.1:8000"
+}

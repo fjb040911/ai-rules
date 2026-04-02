@@ -14,9 +14,12 @@
   "enabledRuleIds": [
     "JAVA-ARCH-101",
     "JAVA-ARCH-102",
+    "JAVA-ARCH-103",
     "JAVA-SEC-202",
     "JAVA-API-301",
-    "JAVA-DATA-401"
+    "JAVA-DATA-401",
+    "JAVA-DATA-403",
+    "JAVA-DATA-404"
   ],
   "severityThreshold": "WARN",
   "scopes": [

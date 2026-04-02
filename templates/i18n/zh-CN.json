@@ -74,6 +74,18 @@
   "rule.REACT-302.prompt.requirement": "hooks 必须遵循调用规则。",
   "rule.REACT-302.prompt.solution": "请将 hooks 调整到组件顶层或自定义 hook。",
 
+  "rule.REACT-303.intent": "列表渲染不应使用不稳定的数组下标作为 key。",
+  "rule.REACT-303.fix": "请使用业务唯一标识作为 key，不要使用循环下标。",
+  "rule.REACT-303.prompt.violation": "检测到列表渲染使用数组下标作为 key。",
+  "rule.REACT-303.prompt.requirement": "列表项必须使用稳定 key。",
+  "rule.REACT-303.prompt.solution": "请将 index key 替换为稳定的实体标识。",
+
+  "rule.REACT-304.intent": "执行远程请求的 effect 必须具备稳定的依赖控制。",
+  "rule.REACT-304.fix": "请将请求逻辑抽到 hook/service，并明确且稳定地管理 effect 依赖。",
+  "rule.REACT-304.prompt.violation": "检测到 effect 驱动的远程请求依赖控制不稳定或缺失。",
+  "rule.REACT-304.prompt.requirement": "effect 不应触发陈旧、重复或循环请求。",
+  "rule.REACT-304.prompt.solution": "请稳定 effect 依赖，并将请求逻辑隔离到 hook/service 中。",
+
   "rule.VUE-301.intent": "computed 必须保持纯函数，不得包含副作用。",
   "rule.VUE-301.fix": "将副作用迁移至 watch 或 onMounted。",
   "rule.VUE-301.prompt.violation": "检测到 computed 内部的副作用逻辑。",
@@ -91,6 +103,18 @@
   "rule.VUE-303.prompt.violation": "检测到直接 DOM 操作。",
   "rule.VUE-303.prompt.requirement": "DOM 操作应通过 Vue 机制封装。",
   "rule.VUE-303.prompt.solution": "替换为 ref 或 Vue API 方式。",
+
+  "rule.VUE-304.intent": "组件内部不得直接修改 props。",
+  "rule.VUE-304.fix": "请改为派生本地状态或通过 emit 通知外层更新。",
+  "rule.VUE-304.prompt.violation": "检测到 Vue 组件直接修改 props。",
+  "rule.VUE-304.prompt.requirement": "props 作为只读输入，组件内部不得直接修改。",
+  "rule.VUE-304.prompt.solution": "请使用本地状态或 emit 更新事件替代直接修改 props。",
+
+  "rule.VUE-305.intent": "列表渲染不应使用循环下标作为 key。",
+  "rule.VUE-305.fix": "请为 :key 使用稳定唯一标识，不要使用 index。",
+  "rule.VUE-305.prompt.violation": "检测到 :key 绑定为循环下标。",
+  "rule.VUE-305.prompt.requirement": "Vue 列表 key 必须在重排与更新中保持稳定。",
+  "rule.VUE-305.prompt.solution": "请将 index key 替换为稳定的实体标识。",
 
   "prompt.audit.system": "你是严格的架构审计助手。请基于规则键解析后的内容对项目栈执行分层、类型、安全与可维护性审计。",
   "prompt.audit.user": "请阅读项目中的 .ai-rules.md 与 rules-config.json，对给定代码进行规则审计，并输出违规项、定位和修复建议。",
@@ -209,6 +233,12 @@
   "rule.JAVA-ARCH-102.prompt.requirement": "控制层只能编排请求与响应。",
   "rule.JAVA-ARCH-102.prompt.solution": "移除越层依赖，统一通过 Service 注入。",
 
+  "rule.JAVA-ARCH-103.intent": "Controller 不应包含应下沉到 Service 的业务分支与编排逻辑。",
+  "rule.JAVA-ARCH-103.fix": "请将业务判断与编排逻辑迁移到 Service 层。",
+  "rule.JAVA-ARCH-103.prompt.violation": "检测到 Controller 方法中存在业务逻辑或分支编排。",
+  "rule.JAVA-ARCH-103.prompt.requirement": "Controller 应保持轻量，只负责请求响应编排。",
+  "rule.JAVA-ARCH-103.prompt.solution": "请把分支判断与业务编排提取到 Service 方法中。",
+
   "rule.JAVA-SEC-201.intent": "禁止字符串拼接构造 SQL。",
   "rule.JAVA-SEC-201.fix": "改为参数化查询或 ORM 安全查询方式。",
   "rule.JAVA-SEC-201.prompt.violation": "检测到潜在 SQL 注入风险。",
@@ -238,6 +268,18 @@
   "rule.JAVA-DATA-401.prompt.violation": "检测到写操作缺少事务语义。",
   "rule.JAVA-DATA-401.prompt.requirement": "数据一致性操作必须运行于事务中。",
   "rule.JAVA-DATA-401.prompt.solution": "补充事务注解并验证回滚行为。",
+
+  "rule.JAVA-DATA-403.intent": "事务边界不应定义在 Controller 上。",
+  "rule.JAVA-DATA-403.fix": "请将事务管理迁移到 Service 层，避免在 Controller 上声明事务。",
+  "rule.JAVA-DATA-403.prompt.violation": "检测到 Controller 中使用 @Transactional。",
+  "rule.JAVA-DATA-403.prompt.requirement": "事务边界应位于应用/服务层，而不是控制层。",
+  "rule.JAVA-DATA-403.prompt.solution": "请移除 Controller 事务声明并将事务边界迁移到 Service。",
+
+  "rule.JAVA-DATA-404.intent": "写入型 Service 方法必须具备明确事务边界。",
+  "rule.JAVA-DATA-404.fix": "请为写操作 Service 方法增加明确事务语义。",
+  "rule.JAVA-DATA-404.prompt.violation": "检测到写入型 Service 逻辑缺少明确事务边界。",
+  "rule.JAVA-DATA-404.prompt.requirement": "写操作必须运行在清晰可控的事务语义中。",
+  "rule.JAVA-DATA-404.prompt.solution": "请为写路径补充或调整事务注解。",
 
   "rule.JAVA-DATA-402.intent": "禁止无分页的大数据查询。",
   "rule.JAVA-DATA-402.fix": "使用分页查询并限制默认页大小。",
@@ -315,6 +357,18 @@
   "rule.PYBASE-REPRO-501.prompt.requirement": "结果应可复现与可比较。",
   "rule.PYBASE-REPRO-501.prompt.solution": "增加统一 seed 配置并记录到日志。",
 
+  "rule.PYBASE-ERR-601.intent": "宽泛异常不得被静默吞掉。",
+  "rule.PYBASE-ERR-601.fix": "请记录日志、转换异常或重新抛出，不要直接抑制错误。",
+  "rule.PYBASE-ERR-601.prompt.violation": "检测到宽泛异常处理疑似吞掉失败信息。",
+  "rule.PYBASE-ERR-601.prompt.requirement": "异常处理必须保留可诊断性和失败语义。",
+  "rule.PYBASE-ERR-601.prompt.solution": "请补充日志、抛出领域异常或直接重新抛出，而不是静默吞掉异常。",
+
+  "rule.PYBASE-IO-602.intent": "外部 HTTP 调用必须显式指定 timeout。",
+  "rule.PYBASE-IO-602.fix": "请补充 timeout，并尽量将 HTTP 客户端配置集中管理。",
+  "rule.PYBASE-IO-602.prompt.violation": "检测到外部 HTTP 调用缺少显式 timeout 策略。",
+  "rule.PYBASE-IO-602.prompt.requirement": "外部 I/O 必须快速失败且行为可预测。",
+  "rule.PYBASE-IO-602.prompt.solution": "请设置明确 timeout，并将共享配置收敛到统一客户端层。",
+
   "rule.PY-ARCH-101.intent": "路由层不得直接创建数据库会话或执行数据访问。",
   "rule.PY-ARCH-101.fix": "将数据访问下沉到 service/repository 层。",
   "rule.PY-ARCH-101.prompt.violation": "检测到路由层直接访问数据库。",
@@ -344,6 +398,18 @@
   "rule.PY-API-302.prompt.violation": "检测到 API 返回未约束的数据结构。",
   "rule.PY-API-302.prompt.requirement": "返回契约需稳定可控。",
   "rule.PY-API-302.prompt.solution": "补充 response_model 并控制字段暴露。",
+
+  "rule.PY-API-303.intent": "FastAPI 接口应声明显式的 response_model 契约。",
+  "rule.PY-API-303.fix": "请补充 response_model 声明，使接口输出显式且可校验。",
+  "rule.PY-API-303.prompt.violation": "检测到接口缺少显式 response_model。",
+  "rule.PY-API-303.prompt.requirement": "API 响应必须显式、可校验且可文档化。",
+  "rule.PY-API-303.prompt.solution": "请为接口声明 response_model，并返回符合契约的数据。",
+
+  "rule.PY-API-304.intent": "列表接口必须提供分页或显式 limit 上界。",
+  "rule.PY-API-304.fix": "请为列表型接口增加分页参数或 limit 上界约束。",
+  "rule.PY-API-304.prompt.violation": "检测到列表接口可能返回无界结果。",
+  "rule.PY-API-304.prompt.requirement": "集合类接口必须可控且适合生产环境。",
+  "rule.PY-API-304.prompt.solution": "请为接口增加分页或显式的 limit 边界。",
 
   "rule.PY-ASYNC-401.intent": "异步路由中禁止使用阻塞 HTTP 客户端。",
   "rule.PY-ASYNC-401.fix": "替换为异步客户端（如 httpx.AsyncClient）。",

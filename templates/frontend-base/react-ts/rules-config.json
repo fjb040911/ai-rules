@@ -13,7 +13,9 @@
   },
   "enabledRuleIds": [
     "REACT-301",
-    "REACT-302"
+    "REACT-302",
+    "REACT-303",
+    "REACT-304"
   ],
   "severityThreshold": "WARN",
   "scopes": [

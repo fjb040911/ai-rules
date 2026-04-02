@@ -74,6 +74,18 @@
   "rule.REACT-302.prompt.requirement": "Hook call rules must be respected.",
   "rule.REACT-302.prompt.solution": "Refactor hook usage to legal call sites.",
 
+  "rule.REACT-303.intent": "List rendering should not use unstable array index keys.",
+  "rule.REACT-303.fix": "Use a stable domain identifier as the key instead of the loop index.",
+  "rule.REACT-303.prompt.violation": "Detected list rendering keyed by array index.",
+  "rule.REACT-303.prompt.requirement": "Rendered lists must use stable keys.",
+  "rule.REACT-303.prompt.solution": "Replace index-based keys with stable entity identifiers.",
+
+  "rule.REACT-304.intent": "Effects that fetch remote data must use stable dependency control.",
+  "rule.REACT-304.fix": "Move request logic into a dedicated hook/service and make effect dependencies explicit and stable.",
+  "rule.REACT-304.prompt.violation": "Detected effect-driven remote request with unstable or missing dependency discipline.",
+  "rule.REACT-304.prompt.requirement": "Effects must not trigger stale, repeated, or looping requests.",
+  "rule.REACT-304.prompt.solution": "Stabilize effect dependencies and isolate request logic into hooks/services.",
+
   "rule.VUE-301.intent": "Computed functions must remain pure and free of side effects.",
   "rule.VUE-301.fix": "Move side effects into watch or onMounted.",
   "rule.VUE-301.prompt.violation": "Detected side effects inside computed.",
@@ -91,6 +103,18 @@
   "rule.VUE-303.prompt.violation": "Detected direct DOM access.",
   "rule.VUE-303.prompt.requirement": "DOM operations should be mediated by Vue.",
   "rule.VUE-303.prompt.solution": "Replace direct DOM access with ref/Vue APIs.",
+
+  "rule.VUE-304.intent": "Props must not be mutated directly inside components.",
+  "rule.VUE-304.fix": "Derive local state or emit updates instead of mutating props directly.",
+  "rule.VUE-304.prompt.violation": "Detected direct prop mutation in a Vue component.",
+  "rule.VUE-304.prompt.requirement": "Props are read-only inputs and must remain immutable inside components.",
+  "rule.VUE-304.prompt.solution": "Create local state or emit update events instead of mutating props.",
+
+  "rule.VUE-305.intent": "List rendering should not use the loop index as the key.",
+  "rule.VUE-305.fix": "Use a stable unique identifier for :key instead of the loop index.",
+  "rule.VUE-305.prompt.violation": "Detected :key bound to a loop index.",
+  "rule.VUE-305.prompt.requirement": "Vue list keys must be stable across reorders and updates.",
+  "rule.VUE-305.prompt.solution": "Replace index-based keys with a stable entity identifier.",
 
   "prompt.audit.system": "You are a strict architecture auditor. Use resolved rule content to audit layering, typing, security, and maintainability across the project's stack.",
   "prompt.audit.user": "Read .ai-rules.md and rules-config.json, then audit the target code and output violations, locations, and actionable fixes.",
@@ -209,6 +233,12 @@
   "rule.JAVA-ARCH-102.prompt.requirement": "Controller layer should only orchestrate request/response flow.",
   "rule.JAVA-ARCH-102.prompt.solution": "Remove cross-layer dependencies and inject service abstractions.",
 
+  "rule.JAVA-ARCH-103.intent": "Controllers should not contain business branching or orchestration logic that belongs in services.",
+  "rule.JAVA-ARCH-103.fix": "Move business decision logic and orchestration into the service layer.",
+  "rule.JAVA-ARCH-103.prompt.violation": "Detected business logic or branching inside a controller method.",
+  "rule.JAVA-ARCH-103.prompt.requirement": "Controllers should stay thin and delegate business logic to services.",
+  "rule.JAVA-ARCH-103.prompt.solution": "Extract branching and orchestration into a service method.",
+
   "rule.JAVA-SEC-201.intent": "Disallow SQL construction via string concatenation.",
   "rule.JAVA-SEC-201.fix": "Use parameterized queries or safe ORM query APIs.",
   "rule.JAVA-SEC-201.prompt.violation": "Detected potential SQL injection risk.",
@@ -238,6 +268,18 @@
   "rule.JAVA-DATA-401.prompt.violation": "Detected write path without transaction semantics.",
   "rule.JAVA-DATA-401.prompt.requirement": "Consistency-sensitive operations must run in transactions.",
   "rule.JAVA-DATA-401.prompt.solution": "Add transaction annotations and verify rollback behavior.",
+
+  "rule.JAVA-DATA-403.intent": "Transactional boundaries must not be declared on controllers.",
+  "rule.JAVA-DATA-403.fix": "Move transaction management to the service layer and keep controllers free of transaction semantics.",
+  "rule.JAVA-DATA-403.prompt.violation": "Detected @Transactional usage in a controller.",
+  "rule.JAVA-DATA-403.prompt.requirement": "Transaction boundaries belong in application/service layers, not controllers.",
+  "rule.JAVA-DATA-403.prompt.solution": "Remove controller-level transaction handling and move it to services.",
+
+  "rule.JAVA-DATA-404.intent": "Write service methods must define explicit transaction boundaries.",
+  "rule.JAVA-DATA-404.fix": "Add explicit transactional semantics on write-oriented service methods.",
+  "rule.JAVA-DATA-404.prompt.violation": "Detected write service logic without an explicit transaction boundary.",
+  "rule.JAVA-DATA-404.prompt.requirement": "Write operations must run with clear transaction semantics.",
+  "rule.JAVA-DATA-404.prompt.solution": "Add or refine transaction annotations on the service write path.",
 
   "rule.JAVA-DATA-402.intent": "Disallow unbounded full-table reads in service layer.",
   "rule.JAVA-DATA-402.fix": "Use pagination and enforce default page limits.",
@@ -315,6 +357,18 @@
   "rule.PYBASE-REPRO-501.prompt.requirement": "Results should be reproducible and comparable.",
   "rule.PYBASE-REPRO-501.prompt.solution": "Add unified seed settings and record them in logs.",
 
+  "rule.PYBASE-ERR-601.intent": "Broad exceptions must not be swallowed silently.",
+  "rule.PYBASE-ERR-601.fix": "Log, translate, or re-raise broad exceptions instead of suppressing them.",
+  "rule.PYBASE-ERR-601.prompt.violation": "Detected broad exception handling that appears to swallow failures.",
+  "rule.PYBASE-ERR-601.prompt.requirement": "Exceptions must preserve diagnosability and failure semantics.",
+  "rule.PYBASE-ERR-601.prompt.solution": "Add logging, raise a domain error, or re-raise instead of suppressing the exception.",
+
+  "rule.PYBASE-IO-602.intent": "External HTTP calls must define explicit timeouts.",
+  "rule.PYBASE-IO-602.fix": "Add request timeouts and centralize HTTP client configuration where possible.",
+  "rule.PYBASE-IO-602.prompt.violation": "Detected external HTTP usage without an explicit timeout policy.",
+  "rule.PYBASE-IO-602.prompt.requirement": "External I/O must fail fast and predictably.",
+  "rule.PYBASE-IO-602.prompt.solution": "Set explicit timeout values and move shared configuration into a central client layer.",
+
   "rule.PY-ARCH-101.intent": "Route handlers must not create DB sessions or access data layer directly.",
   "rule.PY-ARCH-101.fix": "Move data access into service/repository layers.",
   "rule.PY-ARCH-101.prompt.violation": "Detected direct database access from API layer.",
@@ -344,6 +398,18 @@
   "rule.PY-API-302.prompt.violation": "Detected unconstrained API response structure.",
   "rule.PY-API-302.prompt.requirement": "Response contracts must be stable and explicit.",
   "rule.PY-API-302.prompt.solution": "Add response_model and control field exposure.",
+
+  "rule.PY-API-303.intent": "FastAPI endpoints should declare explicit response_model contracts.",
+  "rule.PY-API-303.fix": "Add response_model declarations so the API surface is explicit and validated.",
+  "rule.PY-API-303.prompt.violation": "Detected endpoint without an explicit response_model contract.",
+  "rule.PY-API-303.prompt.requirement": "API responses should be explicit, validated, and documented.",
+  "rule.PY-API-303.prompt.solution": "Declare a response_model and return data that conforms to it.",
+
+  "rule.PY-API-304.intent": "List endpoints must enforce pagination or explicit limit bounds.",
+  "rule.PY-API-304.fix": "Add pagination parameters or a bounded limit to list-style endpoints.",
+  "rule.PY-API-304.prompt.violation": "Detected list endpoint that may return unbounded results.",
+  "rule.PY-API-304.prompt.requirement": "Collection endpoints must be bounded and production-safe.",
+  "rule.PY-API-304.prompt.solution": "Introduce pagination or enforce explicit limit guards on the endpoint.",
 
   "rule.PY-ASYNC-401.intent": "Do not use blocking HTTP clients inside async routes.",
   "rule.PY-ASYNC-401.fix": "Use async clients such as httpx.AsyncClient.",

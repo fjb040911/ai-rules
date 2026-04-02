@@ -18,7 +18,9 @@
     "PYBASE-SEC-301",
     "PYBASE-SEC-302",
     "PYBASE-TEST-401",
-    "PYBASE-REPRO-501"
+    "PYBASE-REPRO-501",
+    "PYBASE-ERR-601",
+    "PYBASE-IO-602"
   ],
   "severityThreshold": "WARN",
   "scopes": [
@@ -26,7 +28,9 @@
     "typing",
     "security",
     "test",
-    "reproducibility"
+    "reproducibility",
+    "error-handling",
+    "io"
   ],
   "pathAliases": {
     "@src": "src",
