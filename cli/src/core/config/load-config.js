@@ -33,6 +33,8 @@ function mergeConfigs(parent, child) {
     ...child,
     i18n: mergeObjects(parent.i18n, child.i18n),
     pathAliases: mergeObjects(parent.pathAliases, child.pathAliases),
+    thresholds: mergeObjects(parent.thresholds, child.thresholds),
+    exceptions: mergeStringArrayMap(parent.exceptions, child.exceptions),
     detectOptions: {
       ...parent.detectOptions,
       ...child.detectOptions,
@@ -76,6 +78,18 @@ function mergeArrays(parent, child) {
     }
   }
   return values;
+}
+
+function mergeStringArrayMap(parent, child) {
+  const merged = {
+    ...(parent || {}),
+  };
+
+  for (const [key, value] of Object.entries(child || {})) {
+    merged[key] = mergeArrays(merged[key], value);
+  }
+
+  return merged;
 }
 
 function cloneConfig(value) {

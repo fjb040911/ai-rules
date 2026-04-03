@@ -39,6 +39,9 @@ async function runDoctor(argv) {
     findings.push({ level: "warn", message: "scopes is empty; scope validation will be limited." });
   }
 
+  findings.push(...validateThresholds(config.thresholds));
+  findings.push(...validateExceptions(config.exceptions));
+
   const rulesFile = config.rulesFile || ".ai-rules.md";
   const rulesPath = path.resolve(path.dirname(configPath), rulesFile);
   const hasRules = await fileExists(rulesPath);
@@ -100,3 +103,43 @@ async function isDirectory(targetPath) {
 module.exports = {
   runDoctor,
 };
+
+function validateThresholds(thresholds) {
+  if (!thresholds) {
+    return [];
+  }
+
+  const findings = [];
+  if (typeof thresholds !== "object" || Array.isArray(thresholds)) {
+    findings.push({ level: "error", message: "thresholds must be an object map." });
+    return findings;
+  }
+
+  for (const [key, value] of Object.entries(thresholds)) {
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+      findings.push({ level: "error", message: `thresholds.${key} must be a finite number.` });
+    }
+  }
+
+  return findings;
+}
+
+function validateExceptions(exceptions) {
+  if (!exceptions) {
+    return [];
+  }
+
+  const findings = [];
+  if (typeof exceptions !== "object" || Array.isArray(exceptions)) {
+    findings.push({ level: "error", message: "exceptions must be an object map." });
+    return findings;
+  }
+
+  for (const [rulePattern, filePatterns] of Object.entries(exceptions)) {
+    if (!Array.isArray(filePatterns) || filePatterns.some((item) => typeof item !== "string")) {
+      findings.push({ level: "error", message: `exceptions.${rulePattern} must be an array of glob strings.` });
+    }
+  }
+
+  return findings;
+}

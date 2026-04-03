@@ -44,6 +44,36 @@
   "rule.UI-202.prompt.requirement": "Form controls must be accessible.",
   "rule.UI-202.prompt.solution": "Add aria-label/aria-labelledby or explicit label linkage.",
 
+  "rule.FE-SEC-101.intent": "Do not inject untrusted content through innerHTML or dangerouslySetInnerHTML.",
+  "rule.FE-SEC-101.fix": "Remove raw HTML injection or sanitize content through a trusted sanitization layer before rendering.",
+  "rule.FE-SEC-101.prompt.violation": "Detected raw HTML injection API usage in frontend code.",
+  "rule.FE-SEC-101.prompt.requirement": "User-controlled content must not be rendered as raw HTML without strict sanitization.",
+  "rule.FE-SEC-101.prompt.solution": "Replace raw HTML injection with safe rendering or a centralized sanitization utility.",
+
+  "rule.FE-SEC-102.intent": "Do not dynamically execute frontend code through eval or Function constructors.",
+  "rule.FE-SEC-102.fix": "Replace dynamic code execution with explicit logic, lookup tables, or validated parsers.",
+  "rule.FE-SEC-102.prompt.violation": "Detected dynamic code execution in frontend code.",
+  "rule.FE-SEC-102.prompt.requirement": "Frontend code must not execute arbitrary strings as code.",
+  "rule.FE-SEC-102.prompt.solution": "Refactor dynamic execution into explicit safe control flow.",
+
+  "rule.FE-SEC-103.intent": "Do not hardcode secrets, tokens, passwords, or API keys in frontend source code.",
+  "rule.FE-SEC-103.fix": "Move sensitive values to secure backend-managed configuration or environment injection mechanisms.",
+  "rule.FE-SEC-103.prompt.violation": "Detected likely hardcoded secret material in frontend code.",
+  "rule.FE-SEC-103.prompt.requirement": "Sensitive credentials must not live in frontend source files.",
+  "rule.FE-SEC-103.prompt.solution": "Remove the hardcoded value and replace it with secure configuration flow.",
+
+  "rule.FE-SEC-104.intent": "User-controlled HTML, markdown, or dynamic URL content must not reach DOM rendering sinks without trusted sanitization or encoding.",
+  "rule.FE-SEC-104.fix": "Route untrusted content through a centralized sanitization or safe-rendering layer before it reaches DOM sinks.",
+  "rule.FE-SEC-104.prompt.violation": "Detected a likely XSS risk where untrusted content may flow into DOM rendering without trusted sanitization.",
+  "rule.FE-SEC-104.prompt.requirement": "Untrusted rich content and dynamic URLs must be sanitized, encoded, or rendered through approved safe abstractions.",
+  "rule.FE-SEC-104.prompt.solution": "Introduce a trusted sanitization boundary or replace the sink with safer rendering primitives.",
+
+  "rule.FE-SEC-105.intent": "Externally hosted scripts in HTML entry points should use Subresource Integrity (SRI) when feasible.",
+  "rule.FE-SEC-105.fix": "Add integrity and crossorigin attributes for third-party scripts, or self-host/version-pin the asset through trusted build tooling.",
+  "rule.FE-SEC-105.prompt.violation": "Detected a third-party script tag without integrity protection.",
+  "rule.FE-SEC-105.prompt.requirement": "Remote script includes should use Subresource Integrity or an equivalent trusted asset delivery strategy.",
+  "rule.FE-SEC-105.prompt.solution": "Add SRI metadata and cross-origin settings, or move the dependency into a trusted local build pipeline.",
+
   "rule.TS-401.intent": "Disallow any type usage.",
   "rule.TS-401.fix": "Replace any with explicit and safe types.",
   "rule.TS-401.prompt.violation": "Detected any type usage.",
@@ -245,6 +275,30 @@
   "rule.JAVA-SEC-201.prompt.requirement": "Database queries must be parameterized.",
   "rule.JAVA-SEC-201.prompt.solution": "Refactor query logic to use bound parameters.",
 
+  "rule.JAVA-SEC-203.intent": "Global exception handlers must not expose stack traces or internal error details to API callers.",
+  "rule.JAVA-SEC-203.fix": "Return sanitized error payloads and move stack traces to internal logs only.",
+  "rule.JAVA-SEC-203.prompt.violation": "Detected exception handling that may leak internal stack or implementation details.",
+  "rule.JAVA-SEC-203.prompt.requirement": "External error responses must not reveal internal stack traces or sensitive diagnostics.",
+  "rule.JAVA-SEC-203.prompt.solution": "Sanitize API error responses and keep detailed diagnostics in logs.",
+
+  "rule.JAVA-SEC-204.intent": "Logs must not include passwords, tokens, authorization headers, or other sensitive credential fields.",
+  "rule.JAVA-SEC-204.fix": "Mask or remove sensitive fields before logging and standardize secure logging helpers.",
+  "rule.JAVA-SEC-204.prompt.violation": "Detected logging pattern that may expose sensitive credentials or secrets.",
+  "rule.JAVA-SEC-204.prompt.requirement": "Production logs must avoid leaking sensitive authentication or credential material.",
+  "rule.JAVA-SEC-204.prompt.solution": "Redact sensitive fields and log only safe identifiers or metadata.",
+
+  "rule.JAVA-SEC-205.intent": "Sensitive Spring endpoints must enforce authentication and authorization instead of relying on open-by-default access.",
+  "rule.JAVA-SEC-205.fix": "Protect sensitive endpoints with explicit authentication/authorization policies such as method security, request matchers, or shared access guards.",
+  "rule.JAVA-SEC-205.prompt.violation": "Detected a controller path that appears externally reachable but lacks clear authentication or authorization enforcement.",
+  "rule.JAVA-SEC-205.prompt.requirement": "Sensitive API endpoints must have explicit access control and must not rely on permissive defaults.",
+  "rule.JAVA-SEC-205.prompt.solution": "Add explicit authorization rules and align endpoint exposure with least-privilege policies.",
+
+  "rule.JAVA-SEC-206.intent": "Spring security configuration must not broadly permit all traffic or disable core protections without narrow justification.",
+  "rule.JAVA-SEC-206.fix": "Constrain permitAll usage, limit ignored matchers, and keep CSRF/authentication protections enabled unless there is a narrowly documented exception.",
+  "rule.JAVA-SEC-206.prompt.violation": "Detected a Spring security configuration that may be overly permissive.",
+  "rule.JAVA-SEC-206.prompt.requirement": "Security configuration must preserve least-privilege access and should not disable protections globally.",
+  "rule.JAVA-SEC-206.prompt.solution": "Tighten security matchers, reduce open endpoints, and document any narrowly scoped exceptions.",
+
   "rule.JAVA-SEC-202.intent": "Disallow overly permissive CORS settings (e.g., origins=*).",
   "rule.JAVA-SEC-202.fix": "Restrict trusted origins and isolate config per environment.",
   "rule.JAVA-SEC-202.prompt.violation": "Detected overly permissive CORS policy.",
@@ -345,6 +399,18 @@
   "rule.PYBASE-SEC-302.prompt.requirement": "Deserialization must verify source and integrity.",
   "rule.PYBASE-SEC-302.prompt.solution": "Switch serialization strategy and add integrity checks.",
 
+  "rule.PYBASE-SEC-303.intent": "Do not use weak hashing algorithms such as MD5 or SHA1 for password or credential handling.",
+  "rule.PYBASE-SEC-303.fix": "Use a password-safe hashing library such as bcrypt, scrypt, argon2, or a framework-approved password encoder.",
+  "rule.PYBASE-SEC-303.prompt.violation": "Detected weak hashing algorithm usage in security-sensitive code.",
+  "rule.PYBASE-SEC-303.prompt.requirement": "Password and credential material must use modern, password-safe hashing.",
+  "rule.PYBASE-SEC-303.prompt.solution": "Replace weak hashing with a modern password hashing strategy.",
+
+  "rule.PYBASE-SEC-304.intent": "Logs must not include secrets, tokens, passwords, or credential-like fields.",
+  "rule.PYBASE-SEC-304.fix": "Mask or remove sensitive fields before logging and centralize secure log serialization if possible.",
+  "rule.PYBASE-SEC-304.prompt.violation": "Detected logging pattern that may expose sensitive data.",
+  "rule.PYBASE-SEC-304.prompt.requirement": "Application logs must avoid leaking secrets or credential material.",
+  "rule.PYBASE-SEC-304.prompt.solution": "Redact sensitive values and log only safe metadata.",
+
   "rule.PYBASE-TEST-401.intent": "Core module changes should include tests.",
   "rule.PYBASE-TEST-401.fix": "Add unit/regression tests for critical branches.",
   "rule.PYBASE-TEST-401.prompt.violation": "Detected core change without test coverage.",
@@ -386,6 +452,18 @@
   "rule.PY-SEC-202.prompt.violation": "Detected weak authentication/CORS security settings.",
   "rule.PY-SEC-202.prompt.requirement": "Security config must follow least privilege.",
   "rule.PY-SEC-202.prompt.solution": "Harden auth and CORS configuration per environment.",
+
+  "rule.PY-SEC-203.intent": "Do not construct SQL statements with string interpolation, concatenation, or f-strings in FastAPI application code.",
+  "rule.PY-SEC-203.fix": "Use parameterized queries, SQLAlchemy bind parameters, or ORM query builders instead of string-built SQL.",
+  "rule.PY-SEC-203.prompt.violation": "Detected likely SQL construction through string interpolation or concatenation.",
+  "rule.PY-SEC-203.prompt.requirement": "Database queries must be parameterized and must not embed user-controlled values directly into SQL strings.",
+  "rule.PY-SEC-203.prompt.solution": "Refactor the query path to use bound parameters or safe ORM query composition.",
+
+  "rule.PY-SEC-204.intent": "FastAPI request handling and logging must not record raw passwords, tokens, cookies, authorization headers, or credential payloads.",
+  "rule.PY-SEC-204.fix": "Redact sensitive fields before logging, and centralize safe request logging or tracing helpers.",
+  "rule.PY-SEC-204.prompt.violation": "Detected request logging or tracing that may expose sensitive authentication material.",
+  "rule.PY-SEC-204.prompt.requirement": "API logs and traces must avoid leaking secrets, tokens, cookies, or credential-bearing payloads.",
+  "rule.PY-SEC-204.prompt.solution": "Mask sensitive fields and keep only safe metadata such as request IDs, actor IDs, and bounded diagnostics.",
 
   "rule.PY-API-301.intent": "Endpoint inputs should be defined and validated by Pydantic models.",
   "rule.PY-API-301.fix": "Add schema models for body/query inputs and enforce validation.",

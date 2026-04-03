@@ -8,6 +8,8 @@ AI-RULES is a rule-aware CLI for AI-assisted coding governance. It turns project
 - Parses `.ai-rules/.ai-rules.md` and `rules-config.json`
 - Merges `extends` chains for rules and config
 - Collects lightweight local evidence for `regex` and `import/include` style rules
+- Supports config-level `thresholds` for future parameterized rule behavior
+- Supports config-level `exceptions` to suppress known-safe files per rule pattern
 - Generates rule-aware audit prompts instead of static prompt text
 - Normalizes and validates `ai-rule-report.json`
 - Generates stronger fix prompts using both the report and local rule metadata
@@ -19,6 +21,11 @@ Current templates already cover a first batch of high-priority engineering rules
 ### Frontend / React / Vue
 
 - UI code must not call network or data layers directly
+- Raw HTML injection via `innerHTML` / `dangerouslySetInnerHTML` is flagged
+- Semantic XSS flows from untrusted rich content into DOM sinks are called out
+- Dynamic execution via `eval()` / `Function()` is flagged
+- Hardcoded frontend secrets / API keys are flagged
+- Third-party HTML script tags without SRI are flagged
 - Hooks must follow React hook call rules
 - React lists should not use array index as `key`
 - React effect-driven remote requests should use stable dependency control
@@ -31,8 +38,12 @@ Current templates already cover a first batch of high-priority engineering rules
 
 - Bare `except` and broad swallowed exceptions are discouraged
 - Mutable default arguments are flagged
+- Weak password hashing algorithms such as MD5/SHA1 are flagged
+- Logging patterns that may leak sensitive values are flagged
 - External HTTP calls should define explicit timeouts
 - FastAPI routes should not access repositories or DB sessions directly
+- SQL built through interpolation/concatenation in FastAPI code is flagged
+- FastAPI request logging must avoid tokens, cookies, auth headers, and raw credentials
 - FastAPI endpoints should use Pydantic input models
 - FastAPI endpoints should declare explicit `response_model`
 - List-style FastAPI endpoints should enforce pagination or limit bounds
@@ -44,6 +55,10 @@ Current templates already cover a first batch of high-priority engineering rules
 - Controllers should stay thin and avoid business branching/orchestration
 - `@Valid` should guard `@RequestBody` inputs
 - Overly permissive CORS is flagged
+- Exception handlers that may leak stack traces are flagged
+- Logging patterns that may expose credentials are flagged
+- Sensitive Spring endpoints should have explicit authn/authz coverage
+- Overly permissive Spring Security config such as broad `permitAll()` or global protection disablement is flagged
 - Write paths should define transaction boundaries
 - `@Transactional` should not live on controllers
 - Write-oriented service logic should keep explicit transaction semantics
@@ -248,6 +263,48 @@ The current templates intentionally mix:
 
 - fast local rules for obvious anti-patterns
 - semantic AI-guided rules for higher-level architectural or transactional reasoning
+
+## Config Extensions
+
+The config model now supports two roadmap-oriented extensions:
+
+### `thresholds`
+
+Used for configurable numeric limits that future rules can reference.
+
+Example:
+
+```json
+{
+  "thresholds": {
+    "maxFunctionLines": 80,
+    "maxParamsCount": 5,
+    "maxListLimit": 100
+  }
+}
+```
+
+### `exceptions`
+
+Used to suppress known-safe files for matching rule IDs or rule ID patterns during local evidence collection.
+
+Example:
+
+```json
+{
+  "exceptions": {
+    "ARCH-101": [
+      "src/integrations/**"
+    ],
+    "SEC-*": [
+      "__mocks__/**",
+      "**/*.stories.tsx"
+    ]
+  }
+}
+```
+
+These exceptions currently affect local evidence collection for supported local detect modes.
 
 ## Report Shape
 

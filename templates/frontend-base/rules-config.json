@@ -16,6 +16,11 @@
     "ARCH-103",
     "UI-201",
     "UI-202",
+    "FE-SEC-101",
+    "FE-SEC-102",
+    "FE-SEC-103",
+    "FE-SEC-104",
+    "FE-SEC-105",
     "TS-401",
     "STYLE-501",
     "STYLE-502"
@@ -23,6 +28,7 @@
   "severityThreshold": "WARN",
   "scopes": [
     "ui",
+    "security",
     "service",
     "module",
     "typescript",
@@ -31,7 +37,9 @@
   "pathAliases": {},
   "detectOptions": {
     "include": [
-      "src/**/*.{ts,tsx,js,jsx,vue}"
+      "src/**/*.{ts,tsx,js,jsx,vue}",
+      "public/**/*.html",
+      "*.html"
     ],
     "exclude": [
       "**/*.test.*",

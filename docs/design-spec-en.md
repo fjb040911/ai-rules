@@ -191,6 +191,8 @@ Key fields include:
 - `severityThreshold`
 - `scopes`
 - `pathAliases`
+- `thresholds`
+- `exceptions`
 - `detectOptions.include`
 - `detectOptions.exclude`
 - `prompt`

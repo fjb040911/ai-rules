@@ -191,6 +191,8 @@ context:
 - `severityThreshold`
 - `scopes`
 - `pathAliases`
+- `thresholds`
+- `exceptions`
 - `detectOptions.include`
 - `detectOptions.exclude`
 - `prompt`

@@ -44,6 +44,36 @@
   "rule.UI-202.prompt.requirement": "表单控件需要具备可访问性语义。",
   "rule.UI-202.prompt.solution": "请补充 aria-label/aria-labelledby 或 label 关联。",
 
+  "rule.FE-SEC-101.intent": "禁止通过 innerHTML 或 dangerouslySetInnerHTML 直接注入不可信内容。",
+  "rule.FE-SEC-101.fix": "移除原始 HTML 注入，或在渲染前通过可信的统一消毒层进行严格清洗。",
+  "rule.FE-SEC-101.prompt.violation": "检测到前端代码使用原始 HTML 注入 API。",
+  "rule.FE-SEC-101.prompt.requirement": "用户可控内容未经严格清洗前不得以原始 HTML 形式渲染。",
+  "rule.FE-SEC-101.prompt.solution": "请改为安全渲染方式，或接入统一的 HTML 清洗工具。",
+
+  "rule.FE-SEC-102.intent": "禁止通过 eval 或 Function 构造器动态执行前端代码。",
+  "rule.FE-SEC-102.fix": "请使用显式逻辑、映射表或经过验证的解析方案替代动态执行。",
+  "rule.FE-SEC-102.prompt.violation": "检测到前端代码中存在动态代码执行。",
+  "rule.FE-SEC-102.prompt.requirement": "前端代码不得将任意字符串当作代码执行。",
+  "rule.FE-SEC-102.prompt.solution": "请将动态执行逻辑重构为显式且安全的控制流。",
+
+  "rule.FE-SEC-103.intent": "禁止在前端源码中硬编码 secret、token、password 或 API key。",
+  "rule.FE-SEC-103.fix": "将敏感值迁移到后端托管配置或安全的环境注入机制中。",
+  "rule.FE-SEC-103.prompt.violation": "检测到前端代码中疑似硬编码的敏感凭据。",
+  "rule.FE-SEC-103.prompt.requirement": "敏感凭据不得出现在前端源码文件中。",
+  "rule.FE-SEC-103.prompt.solution": "请移除硬编码值，并改为安全配置流转方案。",
+
+  "rule.FE-SEC-104.intent": "用户可控的 HTML、Markdown 或动态 URL 内容，未经可信清洗或编码，不得流入 DOM 渲染危险点。",
+  "rule.FE-SEC-104.fix": "请在内容进入 DOM sink 之前，统一经过可信的清洗层或安全渲染抽象。",
+  "rule.FE-SEC-104.prompt.violation": "检测到疑似 XSS 风险，存在不可信内容未经可信清洗直接流入 DOM 渲染的情况。",
+  "rule.FE-SEC-104.prompt.requirement": "不可信富文本和动态 URL 必须经过清洗、编码，或通过受控的安全渲染方式处理。",
+  "rule.FE-SEC-104.prompt.solution": "请引入统一可信的清洗边界，或改用更安全的渲染原语。",
+
+  "rule.FE-SEC-105.intent": "HTML 入口中引用的第三方脚本在可行时应配置 Subresource Integrity (SRI)。",
+  "rule.FE-SEC-105.fix": "请为第三方脚本补充 integrity 和 crossorigin，或通过可信构建流程自托管并固定版本。",
+  "rule.FE-SEC-105.prompt.violation": "检测到第三方 script 标签缺少完整性保护。",
+  "rule.FE-SEC-105.prompt.requirement": "远程脚本引用应使用 SRI，或采用等价的可信资产交付方式。",
+  "rule.FE-SEC-105.prompt.solution": "请增加 SRI 元数据与跨域配置，或将依赖迁移到本地可信构建链路中。",
+
   "rule.TS-401.intent": "禁止使用 any。",
   "rule.TS-401.fix": "用明确类型替代 any。",
   "rule.TS-401.prompt.violation": "检测到 any 类型。",
@@ -245,6 +275,30 @@
   "rule.JAVA-SEC-201.prompt.requirement": "数据库查询必须参数化。",
   "rule.JAVA-SEC-201.prompt.solution": "使用参数绑定重构查询逻辑。",
 
+  "rule.JAVA-SEC-203.intent": "全局异常处理器不得向 API 调用方暴露堆栈或内部实现细节。",
+  "rule.JAVA-SEC-203.fix": "请返回脱敏后的错误响应，并将详细堆栈仅保留在内部日志中。",
+  "rule.JAVA-SEC-203.prompt.violation": "检测到异常处理可能泄露内部堆栈或实现细节。",
+  "rule.JAVA-SEC-203.prompt.requirement": "对外错误响应不得包含内部堆栈和敏感诊断信息。",
+  "rule.JAVA-SEC-203.prompt.solution": "请清洗 API 错误响应，仅在日志中保留详细诊断信息。",
+
+  "rule.JAVA-SEC-204.intent": "日志中不得记录 password、token、Authorization 头或其他敏感凭据字段。",
+  "rule.JAVA-SEC-204.fix": "请在日志前移除或脱敏敏感字段，并统一安全日志工具。",
+  "rule.JAVA-SEC-204.prompt.violation": "检测到日志模式可能暴露敏感凭据或秘密信息。",
+  "rule.JAVA-SEC-204.prompt.requirement": "生产日志不得泄露认证材料或敏感凭据。",
+  "rule.JAVA-SEC-204.prompt.solution": "请对敏感字段脱敏，仅记录安全标识或元数据。",
+
+  "rule.JAVA-SEC-205.intent": "敏感的 Spring 接口必须显式执行认证与授权，不能依赖默认开放访问。",
+  "rule.JAVA-SEC-205.fix": "请通过方法级安全、请求匹配规则或统一访问守卫，为敏感接口增加明确的鉴权策略。",
+  "rule.JAVA-SEC-205.prompt.violation": "检测到对外暴露的控制器路径可能缺少明确的认证或授权保护。",
+  "rule.JAVA-SEC-205.prompt.requirement": "敏感 API 必须具备显式访问控制，不能依赖宽松默认值。",
+  "rule.JAVA-SEC-205.prompt.solution": "请补充明确的授权规则，并按最小权限原则收敛接口暴露范围。",
+
+  "rule.JAVA-SEC-206.intent": "Spring Security 配置不得大范围 permitAll 或在缺乏严格说明时全局关闭核心保护。",
+  "rule.JAVA-SEC-206.fix": "请收敛 permitAll 和 ignored matchers 的范围，并在无严格必要时保持 CSRF/认证保护启用。",
+  "rule.JAVA-SEC-206.prompt.violation": "检测到 Spring Security 配置可能过于宽松。",
+  "rule.JAVA-SEC-206.prompt.requirement": "安全配置必须遵循最小权限，不能全局关闭核心保护。",
+  "rule.JAVA-SEC-206.prompt.solution": "请缩小开放匹配范围、减少默认开放端点，并为必要例外提供明确说明。",
+
   "rule.JAVA-SEC-202.intent": "禁止宽松 CORS 配置（如 origins=*）。",
   "rule.JAVA-SEC-202.fix": "限定可信源并按环境隔离配置。",
   "rule.JAVA-SEC-202.prompt.violation": "检测到过宽 CORS 策略。",
@@ -345,6 +399,18 @@
   "rule.PYBASE-SEC-302.prompt.requirement": "反序列化必须可验证来源与完整性。",
   "rule.PYBASE-SEC-302.prompt.solution": "替换序列化方案并加入完整性校验。",
 
+  "rule.PYBASE-SEC-303.intent": "禁止在密码或凭据处理场景中使用 MD5、SHA1 等弱哈希算法。",
+  "rule.PYBASE-SEC-303.fix": "请改用 bcrypt、scrypt、argon2 或框架推荐的安全密码哈希方案。",
+  "rule.PYBASE-SEC-303.prompt.violation": "检测到安全敏感代码中使用弱哈希算法。",
+  "rule.PYBASE-SEC-303.prompt.requirement": "密码与凭据材料必须使用现代且适合密码场景的哈希策略。",
+  "rule.PYBASE-SEC-303.prompt.solution": "请用现代密码哈希方案替换弱哈希实现。",
+
+  "rule.PYBASE-SEC-304.intent": "日志中不得记录 secret、token、password 或凭据类字段。",
+  "rule.PYBASE-SEC-304.fix": "请在日志前脱敏或移除敏感字段，并尽量统一安全日志序列化。",
+  "rule.PYBASE-SEC-304.prompt.violation": "检测到日志模式可能暴露敏感数据。",
+  "rule.PYBASE-SEC-304.prompt.requirement": "应用日志不得泄露秘密信息或凭据材料。",
+  "rule.PYBASE-SEC-304.prompt.solution": "请对敏感值做脱敏处理，仅记录安全元数据。",
+
   "rule.PYBASE-TEST-401.intent": "核心模块变更应有对应测试。",
   "rule.PYBASE-TEST-401.fix": "补充单元测试或回归测试覆盖关键分支。",
   "rule.PYBASE-TEST-401.prompt.violation": "检测到核心改动缺少测试覆盖。",
@@ -386,6 +452,18 @@
   "rule.PY-SEC-202.prompt.violation": "检测到安全配置过于宽松。",
   "rule.PY-SEC-202.prompt.requirement": "认证与跨域策略必须最小权限。",
   "rule.PY-SEC-202.prompt.solution": "按环境配置安全策略并加固默认值。",
+
+  "rule.PY-SEC-203.intent": "禁止在 FastAPI 应用代码中通过字符串插值、拼接或 f-string 构造 SQL 语句。",
+  "rule.PY-SEC-203.fix": "请改用参数化查询、SQLAlchemy 绑定参数或 ORM 查询构造器，而不是拼接 SQL 字符串。",
+  "rule.PY-SEC-203.prompt.violation": "检测到疑似通过字符串插值或拼接构造 SQL。",
+  "rule.PY-SEC-203.prompt.requirement": "数据库查询必须参数化，不得将用户可控值直接嵌入 SQL 字符串。",
+  "rule.PY-SEC-203.prompt.solution": "请将查询路径重构为绑定参数或安全 ORM 查询组合。",
+
+  "rule.PY-SEC-204.intent": "FastAPI 请求处理与日志中不得记录原始 password、token、cookie、Authorization 头或凭据载荷。",
+  "rule.PY-SEC-204.fix": "请在日志前对敏感字段做脱敏，并统一安全的请求日志/追踪工具。",
+  "rule.PY-SEC-204.prompt.violation": "检测到请求日志或追踪可能暴露敏感认证材料。",
+  "rule.PY-SEC-204.prompt.requirement": "API 日志与追踪不得泄露 secret、token、cookie 或包含凭据的载荷。",
+  "rule.PY-SEC-204.prompt.solution": "请对敏感字段脱敏，仅保留请求 ID、主体 ID 和必要的受限诊断信息。",
 
   "rule.PY-API-301.intent": "接口入参应使用 Pydantic 模型定义与校验。",
   "rule.PY-API-301.fix": "为请求体和查询参数补充 schema 模型。",

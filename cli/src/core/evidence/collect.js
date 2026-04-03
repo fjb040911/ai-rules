@@ -18,32 +18,43 @@ async function collectEvidence({ cwd, config, rules }) {
   for (const rule of rules) {
     const matches = [];
     const sourceFiles = filterFilesForRule(files, rule);
+    const exceptionPatterns = resolveExceptionPatterns(config, rule.id);
+    const filteredFiles = sourceFiles.filter(
+      (file) => !exceptionPatterns.some((pattern) => matchesGlob(file, pattern))
+    );
 
     if (rule.detect && rule.detect.regex) {
-      for (const file of sourceFiles) {
+      for (const file of filteredFiles) {
         const content = await readFileCached(contentCache, cwd, file);
         matches.push(...matchRegex({ rule, filePath: file, content }));
       }
     } else if (rule.detect && (rule.detect.import || rule.detect.include)) {
-      for (const file of sourceFiles) {
+      for (const file of filteredFiles) {
         const content = await readFileCached(contentCache, cwd, file);
         matches.push(...matchImportLike({ rule, filePath: file, content }));
       }
     }
 
-    evidence.push(buildEvidenceRecord(rule, matches));
+    evidence.push(
+      buildEvidenceRecord(rule, matches, {
+        exceptionPatterns,
+        suppressedFileCount: sourceFiles.length - filteredFiles.length,
+      })
+    );
   }
 
   return evidence;
 }
 
-function buildEvidenceRecord(rule, matches) {
+function buildEvidenceRecord(rule, matches, meta) {
   if (rule.detect && rule.detect.regex) {
     return {
       ruleId: rule.id,
       mode: "local-regex",
       matches: matches.slice(0, 10),
       totalMatches: matches.length,
+      exceptionPatterns: meta.exceptionPatterns,
+      suppressedFileCount: meta.suppressedFileCount,
     };
   }
 
@@ -53,6 +64,8 @@ function buildEvidenceRecord(rule, matches) {
       mode: "local-import",
       matches: matches.slice(0, 10),
       totalMatches: matches.length,
+      exceptionPatterns: meta.exceptionPatterns,
+      suppressedFileCount: meta.suppressedFileCount,
     };
   }
 
@@ -62,7 +75,36 @@ function buildEvidenceRecord(rule, matches) {
     matches: [],
     totalMatches: 0,
     note: "This rule uses AST or semantic detection and requires AI judgment.",
+    exceptionPatterns: meta.exceptionPatterns,
+    suppressedFileCount: meta.suppressedFileCount,
   };
+}
+
+function resolveExceptionPatterns(config, ruleId) {
+  const patterns = [];
+  const exceptions = config.exceptions || {};
+
+  for (const [rulePattern, filePatterns] of Object.entries(exceptions)) {
+    if (matchesRulePattern(ruleId, rulePattern)) {
+      for (const filePattern of filePatterns || []) {
+        if (!patterns.includes(filePattern)) {
+          patterns.push(filePattern);
+        }
+      }
+    }
+  }
+
+  return patterns;
+}
+
+function matchesRulePattern(ruleId, pattern) {
+  if (!pattern) {
+    return false;
+  }
+  if (pattern.includes("*")) {
+    return matchesGlob(ruleId, pattern);
+  }
+  return ruleId === pattern;
 }
 
 function filterFilesForRule(files, rule) {

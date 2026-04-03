@@ -23,6 +23,8 @@ test("loadConfig merges extends chains", async () => {
       enabledRuleIds: ["BASE-001"],
       scopes: ["base"],
       pathAliases: { "@base": "src/base" },
+      thresholds: { maxFunctionLines: 80 },
+      exceptions: { "ARCH-*": ["stories/**"] },
       detectOptions: { include: ["src/**/*.js"], exclude: ["dist/**"] },
       prompt: { style: "strict", promptTemplateKeys: { auditSystem: "base.audit" } },
     }),
@@ -37,6 +39,8 @@ test("loadConfig merges extends chains", async () => {
       enabledRuleIds: ["CHILD-001"],
       scopes: ["child"],
       pathAliases: { "@child": "src/child" },
+      thresholds: { maxParamsCount: 5 },
+      exceptions: { "ARCH-*": ["mock/**"], "SEC-*": ["fixtures/**"] },
       detectOptions: { include: ["tests/**/*.js"], exclude: ["coverage/**"] },
       prompt: { includeContextAssets: true, promptTemplateKeys: { repairSystem: "child.repair" } },
     }),
@@ -54,6 +58,14 @@ test("loadConfig merges extends chains", async () => {
   });
   assert.deepEqual(config.detectOptions.include, ["src/**/*.js", "tests/**/*.js"]);
   assert.deepEqual(config.detectOptions.exclude, ["dist/**", "coverage/**"]);
+  assert.deepEqual(config.thresholds, {
+    maxFunctionLines: 80,
+    maxParamsCount: 5,
+  });
+  assert.deepEqual(config.exceptions, {
+    "ARCH-*": ["stories/**", "mock/**"],
+    "SEC-*": ["fixtures/**"],
+  });
   assert.deepEqual(config.prompt.promptTemplateKeys, {
     auditSystem: "base.audit",
     repairSystem: "child.repair",
@@ -199,6 +211,37 @@ test("collectEvidence gathers regex and import candidates", async () => {
   assert.equal(evidence[2].mode, "ai-only");
 });
 
+test("collectEvidence respects rule exceptions from config", async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-rules-exceptions-"));
+  await fs.mkdir(path.join(tempDir, "src"), { recursive: true });
+  await fs.mkdir(path.join(tempDir, "stories"), { recursive: true });
+  await fs.writeFile(path.join(tempDir, "src", "page.ts"), "const data = fetch('/api');\n", "utf8");
+  await fs.writeFile(path.join(tempDir, "stories", "demo.ts"), "const data = fetch('/mock');\n", "utf8");
+
+  const evidence = await collectEvidence({
+    cwd: tempDir,
+    config: {
+      detectOptions: {
+        include: ["**/*.ts"],
+        exclude: [],
+      },
+      exceptions: {
+        "ARCH-*": ["stories/**"],
+      },
+    },
+    rules: [
+      {
+        id: "ARCH-101",
+        detect: { regex: "fetch\\(" },
+      },
+    ],
+  });
+
+  assert.equal(evidence[0].totalMatches, 1);
+  assert.deepEqual(evidence[0].exceptionPatterns, ["stories/**"]);
+  assert.equal(evidence[0].suppressedFileCount, 1);
+});
+
 test("buildAuditPrompt includes config, rules, and evidence sections", () => {
   const prompt = buildAuditPrompt({
     localeMap: {},
@@ -211,6 +254,13 @@ test("buildAuditPrompt includes config, rules, and evidence sections", () => {
         exclude: ["dist/**"],
       },
       enabledRuleIds: ["RULE-001"],
+      thresholds: {
+        maxFunctionLines: 80,
+        maxParamsCount: 5,
+      },
+      exceptions: {
+        "RULE-*": ["stories/**"],
+      },
       prompt: {
         promptTemplates: {
           auditSystem: "System prompt",
@@ -239,6 +289,8 @@ test("buildAuditPrompt includes config, rules, and evidence sections", () => {
         ruleId: "RULE-001",
         mode: "local-regex",
         totalMatches: 1,
+        exceptionPatterns: ["stories/**"],
+        suppressedFileCount: 2,
         matches: [
           {
             file: "src/page.ts",
@@ -254,6 +306,8 @@ test("buildAuditPrompt includes config, rules, and evidence sections", () => {
   assert.match(prompt, /Project config summary:/);
   assert.match(prompt, /### RULE-001/);
   assert.match(prompt, /src\/page\.ts:2/);
+  assert.match(prompt, /maxFunctionLines=80/);
+  assert.match(prompt, /RULE-\*:1/);
   assert.match(prompt, /Return strict JSON only/);
 });
 

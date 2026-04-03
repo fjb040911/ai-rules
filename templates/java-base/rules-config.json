@@ -12,6 +12,8 @@
   },
   "enabledRuleIds": [
     "JAVA-SEC-201",
+    "JAVA-SEC-203",
+    "JAVA-SEC-204",
     "JAVA-API-302",
     "JAVA-DATA-402",
     "JAVA-TEST-501",

@@ -15,6 +15,8 @@ function buildAuditPrompt({ config, rules, evidence, localeMap, reportSchemaText
     `- include paths: ${formatList((config.detectOptions && config.detectOptions.include) || [])}`,
     `- exclude paths: ${formatList((config.detectOptions && config.detectOptions.exclude) || [])}`,
     `- scopes: ${formatList(config.scopes || [])}`,
+    `- thresholds: ${formatObject(config.thresholds)}`,
+    `- exception rules: ${formatExceptionSummary(config.exceptions)}`,
     "",
     "Resolved rules:",
     ...buildRuleSections(activeRules),
@@ -75,6 +77,12 @@ function buildEvidenceSections(rules, evidenceByRule) {
     if (item.note) {
       lines.push(`  note: ${item.note}`);
     }
+    if (item.exceptionPatterns && item.exceptionPatterns.length > 0) {
+      lines.push(`  exceptions: ${item.exceptionPatterns.join(", ")}`);
+    }
+    if (item.suppressedFileCount > 0) {
+      lines.push(`  suppressed files: ${item.suppressedFileCount}`);
+    }
     if (!item.matches.length) {
       lines.push("  matches: none");
       continue;
@@ -102,6 +110,24 @@ function formatList(items) {
     return "(none)";
   }
   return items.join(", ");
+}
+
+function formatObject(value) {
+  if (!value || Object.keys(value).length === 0) {
+    return "(none)";
+  }
+  return Object.entries(value)
+    .map(([key, item]) => `${key}=${item}`)
+    .join(", ");
+}
+
+function formatExceptionSummary(exceptions) {
+  if (!exceptions || Object.keys(exceptions).length === 0) {
+    return "(none)";
+  }
+  return Object.entries(exceptions)
+    .map(([rulePattern, files]) => `${rulePattern}:${files.length}`)
+    .join(", ");
 }
 
 function resolve(localeMap, key) {
