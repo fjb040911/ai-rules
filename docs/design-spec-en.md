@@ -36,35 +36,6 @@ The practical value is reduced review repetition, more architecture-aware AI out
 - Automatic code modification by the CLI itself
 - Replacing human review for high-risk changes
 
-## Problem Statement
-
-AI coding assistants often fail in predictable ways:
-
-- they violate architecture boundaries
-- they ignore project-specific conventions
-- they produce inconsistent audit output schemas
-- they lack enough local context to repair issues safely
-
-Before the current iteration, AI-RULES mainly generated static prompts from templates. That was useful, but not enough. The newer design closes several gaps by adding:
-
-- rule parsing
-- config inheritance merge
-- local evidence collection
-- report normalization
-- fix prompt enrichment from local rule metadata
-
-## Product Positioning
-
-AI-RULES should be understood as:
-
-"A rule-aware orchestration CLI for AI coding audits and repairs."
-
-It is not yet:
-
-"A full local rules engine."
-
-This distinction matters because the CLI now has real structure and validation, but the final audit still depends on AI reasoning for many higher-level constraints.
-
 ## High-Level Workflow
 
 ### 1. Initialize
