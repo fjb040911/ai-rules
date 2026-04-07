@@ -62,6 +62,8 @@ Current templates already cover a first batch of high-priority engineering rules
 - Write paths should define transaction boundaries
 - `@Transactional` should not live on controllers
 - Write-oriented service logic should keep explicit transaction semantics
+- Loops should not perform unbounded remote calls without batching, timeouts, and concurrency control
+- Business exceptions should stay distinct from system/infrastructure failures
 
 ## Current Scope
 

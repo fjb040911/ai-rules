@@ -335,6 +335,18 @@
   "rule.JAVA-DATA-404.prompt.requirement": "写操作必须运行在清晰可控的事务语义中。",
   "rule.JAVA-DATA-404.prompt.solution": "请为写路径补充或调整事务注解。",
 
+  "rule.JAVA-PERF-701.intent": "循环中不得执行无边界的远程 HTTP、RPC 或 client 调用，除非具备批处理、超时和并发控制。",
+  "rule.JAVA-PERF-701.fix": "请将远程工作批处理化，统一收敛到 service/client 抽象，并增加超时、重试和限流保护。",
+  "rule.JAVA-PERF-701.prompt.violation": "检测到循环中疑似存在缺少边界控制的远程调用。",
+  "rule.JAVA-PERF-701.prompt.requirement": "循环中的远程调用必须有边界、可观测、受超时保护，并优先使用批处理。",
+  "rule.JAVA-PERF-701.prompt.solution": "请将循环重构为批处理或受控并发，并在 client 层落实超时/重试策略。",
+
+  "rule.JAVA-ERR-602.intent": "Service 与 API 错误处理中必须区分业务异常与系统/基础设施异常。",
+  "rule.JAVA-ERR-602.fix": "请引入明确的业务异常类型或错误码，单独转换基础设施异常，并对外返回脱敏后的稳定错误响应。",
+  "rule.JAVA-ERR-602.prompt.violation": "检测到错误处理可能将业务失败与系统失败混成通用异常或通用响应。",
+  "rule.JAVA-ERR-602.prompt.requirement": "业务规则失败、校验失败和基础设施失败必须分开表达和处理。",
+  "rule.JAVA-ERR-602.prompt.solution": "请拆分异常类或错误码，并更新全局处理器以返回稳定且脱敏的 API 错误。",
+
   "rule.JAVA-DATA-402.intent": "禁止无分页的大数据查询。",
   "rule.JAVA-DATA-402.fix": "使用分页查询并限制默认页大小。",
   "rule.JAVA-DATA-402.prompt.violation": "检测到潜在全量查询。",

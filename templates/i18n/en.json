@@ -335,6 +335,18 @@
   "rule.JAVA-DATA-404.prompt.requirement": "Write operations must run with clear transaction semantics.",
   "rule.JAVA-DATA-404.prompt.solution": "Add or refine transaction annotations on the service write path.",
 
+  "rule.JAVA-PERF-701.intent": "Loops must not perform unbounded remote HTTP, RPC, or client calls without batching, timeouts, and concurrency control.",
+  "rule.JAVA-PERF-701.fix": "Batch remote work, move repeated calls behind a service/client abstraction, and add timeout, retry, and rate-limit safeguards.",
+  "rule.JAVA-PERF-701.prompt.violation": "Detected a loop that appears to perform remote calls without clear bounding controls.",
+  "rule.JAVA-PERF-701.prompt.requirement": "Remote calls inside loops must be bounded, observable, timeout-protected, and preferably batched.",
+  "rule.JAVA-PERF-701.prompt.solution": "Refactor the loop to use batching or controlled concurrency and enforce client-level timeout/retry policies.",
+
+  "rule.JAVA-ERR-602.intent": "Business exceptions and system/infrastructure failures must remain distinguishable in service and API error handling.",
+  "rule.JAVA-ERR-602.fix": "Introduce explicit business exception types or error codes, translate infrastructure errors separately, and sanitize external API responses.",
+  "rule.JAVA-ERR-602.prompt.violation": "Detected error handling that may collapse business and system failures into a generic exception or response.",
+  "rule.JAVA-ERR-602.prompt.requirement": "Business-rule failures, validation failures, and infrastructure failures must be represented and handled separately.",
+  "rule.JAVA-ERR-602.prompt.solution": "Separate exception classes or error codes and update the global handler to return stable sanitized API errors.",
+
   "rule.JAVA-DATA-402.intent": "Disallow unbounded full-table reads in service layer.",
   "rule.JAVA-DATA-402.fix": "Use pagination and enforce default page limits.",
   "rule.JAVA-DATA-402.prompt.violation": "Detected potential unbounded query.",

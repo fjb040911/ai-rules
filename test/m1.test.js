@@ -3,6 +3,8 @@ const assert = require("node:assert/strict");
 const fs = require("fs/promises");
 const os = require("os");
 const path = require("path");
+const { execFile } = require("child_process");
+const { promisify } = require("util");
 
 const { loadConfig } = require("../cli/src/core/config/load-config");
 const { parseRules } = require("../cli/src/core/rules/parse-rules");
@@ -10,6 +12,8 @@ const { validateRules } = require("../cli/src/core/rules/validate-rules");
 const { collectEvidence } = require("../cli/src/core/evidence/collect");
 const { buildAuditPrompt } = require("../cli/src/core/prompt/build-audit-prompt");
 const { normalizeReport } = require("../cli/src/core/report/normalize");
+
+const execFileAsync = promisify(execFile);
 
 test("loadConfig merges extends chains", async () => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-rules-config-"));
@@ -362,4 +366,77 @@ test("normalizeReport reports structural errors", () => {
   assert.ok(normalized.findings.some((item) => item.message.includes("missing issueId")));
   assert.ok(normalized.findings.some((item) => item.message.includes("Duplicate issueId 'ISSUE-001'")));
   assert.ok(normalized.findings.some((item) => item.message.includes("invalid severity 'OOPS'")));
+});
+
+test("doctor reports invalid thresholds and exceptions", async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-rules-doctor-"));
+  const aiRulesDir = path.join(tempDir, ".ai-rules");
+  await fs.mkdir(aiRulesDir, { recursive: true });
+  await fs.writeFile(
+    path.join(aiRulesDir, "rules-config.json"),
+    JSON.stringify({
+      rulesFile: ".ai-rules.md",
+      enabledRuleIds: ["RULE-001"],
+      scopes: ["security"],
+      thresholds: {
+        maxFunctionLines: "80",
+      },
+      exceptions: {
+        "RULE-*": "fixtures/**",
+      },
+    }),
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(aiRulesDir, ".ai-rules.md"),
+    [
+      "### RULE: RULE-001",
+      "severity: WARN",
+      "scope: security",
+      "intent: Keep things safe",
+      "",
+      "detect:",
+      "  regex: \"secret\"",
+      "fix: Remove the secret",
+      "prompt:",
+      "  violation: Secret found",
+      "  requirement: Secrets must not be committed",
+      "  solution: Move secrets to secure config",
+      "",
+    ].join("\n"),
+    "utf8"
+  );
+
+  const cliPath = path.join(__dirname, "..", "cli", "src", "index.js");
+  await assert.rejects(
+    () => execFileAsync(process.execPath, [cliPath, "doctor"], { cwd: tempDir }),
+    (err) => {
+      const output = `${err.stdout || ""}${err.stderr || ""}`;
+      assert.match(output, /thresholds\.maxFunctionLines must be a finite number/);
+      assert.match(output, /exceptions\.RULE-\* must be an array of glob strings/);
+      return true;
+    }
+  );
+});
+
+test("current expanded templates parse and validate", async () => {
+  const templateConfigs = [
+    path.join(__dirname, "..", "templates", "frontend-base", "rules-config.json"),
+    path.join(__dirname, "..", "templates", "python-base", "python-fastapi", "rules-config.json"),
+    path.join(__dirname, "..", "templates", "java-base", "java-spring", "rules-config.json"),
+  ];
+
+  for (const configPath of templateConfigs) {
+    const config = await loadConfig(configPath);
+    const rulesPath = path.resolve(path.dirname(configPath), config.rulesFile || ".ai-rules.md");
+    const rules = await parseRules(rulesPath);
+    const ruleIds = new Set(rules.map((rule) => rule.id));
+    const missingRuleIds = config.enabledRuleIds.filter((ruleId) => !ruleIds.has(ruleId));
+
+    assert.deepEqual(
+      missingRuleIds,
+      [],
+      `${path.relative(path.join(__dirname, ".."), configPath)} should only enable rules present in the parsed templates`
+    );
+  }
 });

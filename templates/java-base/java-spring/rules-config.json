@@ -21,14 +21,18 @@
     "JAVA-API-301",
     "JAVA-DATA-401",
     "JAVA-DATA-403",
-    "JAVA-DATA-404"
+    "JAVA-DATA-404",
+    "JAVA-PERF-701",
+    "JAVA-ERR-602"
   ],
   "severityThreshold": "WARN",
   "scopes": [
     "architecture",
     "security",
     "api",
-    "data"
+    "data",
+    "performance",
+    "error"
   ],
   "pathAliases": {
     "@controller": "src/main/java/**/controller",
