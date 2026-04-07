@@ -27,12 +27,6 @@
     "test",
     "observability"
   ],
-  "pathAliases": {
-    "@controller": "src/main/java/**/controller",
-    "@service": "src/main/java/**/service",
-    "@repository": "src/main/java/**/repository",
-    "@dto": "src/main/java/**/dto"
-  },
   "detectOptions": {
     "include": [
       "src/main/java/**/*.java",

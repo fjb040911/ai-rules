@@ -13,6 +13,14 @@ AI-RULES 是一个面向 AI 编码治理的 rule-aware CLI。它将项目中的 
 
 这样既能立即产生价值，也不会虚假承诺完整静态分析能力。
 
+## 为什么需要 AI-RULES
+
+AI 编码代理通常能生成“看起来合理”的代码，但不一定符合具体仓库里的真实架构、目录结构、安全边界和修复流程。很多问题会反复出现：UI 层越过 service/data 边界，后端 controller 直接承载业务逻辑，日志暴露敏感字段，AI 输出的审计报告结构不稳定，导致后续修复链路难以自动衔接。
+
+AI-RULES 解决的是更前置的问题：在代码进入 Review、CI 或合并门禁之前，先给 AI 一个项目本地的工作协议。`.ai-rules.md`、`rules-config.json` 和 `config.json` 共同告诉 AI：哪些规则启用、严重级别是什么、哪些路径需要关注、如何解析本地目录别名、哪些例外路径可以忽略，以及应该如何输出可修复的审计报告。
+
+它带来的实际价值是：减少重复 Review 成本，让 AI 输出更贴合项目架构，让 Prompt 更确定，并让 audit 到 fix 的链路在 Codex、Cursor、Claude Code 或其他 Prompt 驱动的编码工具中更稳定。
+
 ## 目标
 
 - 让规则在多项目之间可复用
@@ -120,9 +128,11 @@ CLI 会在项目根目录创建：
 .ai-rules/
 ├── .ai-rules.md
 ├── rules-config.json
+├── config.json
 ├── base/
 │   ├── .ai-rules.md
-│   └── rules-config.json
+│   ├── rules-config.json
+│   └── config.json
 └── cache/
     └── audit-context.json
 ```
@@ -183,7 +193,11 @@ context:
 
 ## 配置模型
 
-规则与 `rules-config.json` 配套使用。
+规则与 `rules-config.json` 配套使用。项目也可以在 `rules-config.json` 同目录下提供可选的 `config.json` sidecar。
+
+`rules-config.json` 负责模板与运行时配置。
+
+`config.json` 主要用于本地项目目录结构覆盖，尤其适合不同仓库目录不一致时覆盖路径别名。
 
 关键字段包括：
 
@@ -198,13 +212,38 @@ context:
 - `prompt`
 - `extends`
 
-CLI 会递归处理 `extends` 并输出合并后的配置。
+CLI 会递归处理 `extends`，然后在存在本地 `config.json` 时将其合并到最终配置之上。
 
 合并策略：
 
 - 标量字段：子配置覆盖父配置
 - 数组字段：去重合并
 - map/object：浅合并，子配置优先
+
+本地目录覆盖示例：
+
+```json
+{
+  "pathAliases": {
+    "@controller": "app/controllers",
+    "@service": "app/services"
+  }
+}
+```
+
+规则可以在 `context`、`detect.where`、`detect.import` 和 `detect.include` 中使用这些别名：
+
+```md
+detect:
+  include: "@repository/**"
+  where: filePath in @controller/**
+context:
+  - @service
+```
+
+CLI 会在收集 evidence 和生成 Prompt 之前解析这些别名。
+
+当配置的 alias 指向不存在的路径时，`doctor` 和 `audit` 会输出显眼警告，并提示用户打开 `.ai-rules/config.json` 修正。
 
 ## 检测模型
 

@@ -34,11 +34,6 @@
     "error-handling",
     "io"
   ],
-  "pathAliases": {
-    "@src": "src",
-    "@tests": "tests",
-    "@scripts": "scripts"
-  },
   "detectOptions": {
     "include": [
       "**/*.py",

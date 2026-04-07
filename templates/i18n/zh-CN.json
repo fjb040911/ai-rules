@@ -146,10 +146,10 @@
   "rule.VUE-305.prompt.requirement": "Vue 列表 key 必须在重排与更新中保持稳定。",
   "rule.VUE-305.prompt.solution": "请将 index key 替换为稳定的实体标识。",
 
-  "prompt.audit.system": "你是严格的架构审计助手。请基于规则键解析后的内容对项目栈执行分层、类型、安全与可维护性审计。",
-  "prompt.audit.user": "请阅读项目中的 .ai-rules.md 与 rules-config.json，对给定代码进行规则审计，并输出违规项、定位和修复建议。",
-  "prompt.repair.system": "你是代码修复助手。请遵循规则键映射后的规范输出可执行修复方案。",
-  "prompt.repair.user": "请根据违规规则和上下文资产生成最小修改方案，必要时给出可直接应用的补丁。",
+  "prompt.audit.system": "你是严格的 AI 代码治理审计器。审计代码前，必须按顺序消费项目规则系统：1）.ai-rules/rules-config.json 定义 enabledRuleIds、severityThreshold、detectOptions、thresholds、exceptions 和 prompt 行为。2）.ai-rules/config.json 定义本地项目目录覆盖，例如 pathAliases。判断路径前必须先解析 @service、@controller、@api、@components 等别名；如果 config.json 提供了不同映射，不要假设模板默认目录结构。3）.ai-rules/.ai-rules.md 定义规则的 severity、scope、intent、detect、fix、prompt 和 context。只审计启用规则，将 context 视为辅助上下文资产而非唯一扫描目标，存在 detect.where 时必须遵守，并且不要报告 exceptions 覆盖的路径。",
+  "prompt.audit.user": "请基于解析后的 AI-RULES 配置审计目标代码。对 regex/import/include 规则，优先使用具体本地证据；对 ast/semantic 规则，请谨慎使用 AI 判断并诚实体现置信度。如果某个 context 路径不存在，不要直接忽略规则，应结合 config.json pathAliases 和项目附近目录结构推断目标层。最终只输出要求的 JSON report schema，每个 issue 只引用一个已启用 ruleId，不要输出额外解释。",
+  "prompt.repair.system": "你是代码修复助手。请遵循解析后的 AI-RULES 配置，包括 rules-config.json、config.json pathAliases、enabledRuleIds、severityThreshold、exceptions、规则 intent、fix guidance、prompt requirements 和 context assets。输出可执行的最小修改方案，不要重构无关代码。",
+  "prompt.repair.user": "请根据违规规则元数据、报告证据和解析后的项目上下文资产，生成最小补丁方案，必要时给出可直接应用的修改。请保持架构边界，尊重 exceptions，不要做与当前 issue 无关的大范围重写。",
   "prompt.audit.cli": "请启动语义审计：读取项目中的 .ai-rules/ 规则与配置，对代码进行架构意图一致性检查，并输出 ai-rule-report.json。请严格输出 JSON，结构为：{ \"version\": \"1.0\", \"violations\": [ { \"issueId\": \"ISSUE-001\", \"ruleId\": \"ARCH-101\", \"severity\": \"FATAL|WARN|INFO\", \"file\": \"src/...\", \"line\": 1, \"description\": \"...\", \"fixSuggestion\": \"...\", \"repairPrompt\": \"...\" } ] }。每条违规必须包含唯一 issueId 和 repairPrompt。",
 
   "template.c-cpp.title": "AI-RULES C/C++ 模板",

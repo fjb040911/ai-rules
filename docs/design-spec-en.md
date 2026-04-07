@@ -13,6 +13,14 @@ The current system is intentionally lightweight:
 
 This keeps the tool useful today without pretending to be a full static analyzer.
 
+## Why AI-RULES
+
+AI coding agents tend to generate code that is broadly plausible, but not always aligned with a repository's real architecture, directory layout, security posture, or repair workflow. The same problems recur across teams: UI code reaches into services or data layers, backend controllers bypass service boundaries, logs expose sensitive fields, and AI-produced reports drift away from a stable schema.
+
+AI-RULES addresses that upstream. It gives AI agents a project-local operating contract before code reaches review, CI, or merge gates. The combination of `.ai-rules.md`, `rules-config.json`, and `config.json` tells the agent which rules are enabled, how severe they are, which paths matter, how to resolve local directory aliases, what exceptions are allowed, and how to produce repairable audit output.
+
+The practical value is reduced review repetition, more architecture-aware AI output, more deterministic prompts, and a more stable audit-to-fix loop across different AI coding tools.
+
 ## Goals
 
 - Make project rules reusable across repositories
@@ -120,9 +128,11 @@ The CLI generates a project-local rules directory:
 .ai-rules/
 ├── .ai-rules.md
 ├── rules-config.json
+├── config.json
 ├── base/
 │   ├── .ai-rules.md
-│   └── rules-config.json
+│   ├── rules-config.json
+│   └── config.json
 └── cache/
     └── audit-context.json
 ```
@@ -183,7 +193,11 @@ context:
 
 ## Configuration Model
 
-Rules are paired with `rules-config.json`.
+Rules are paired with `rules-config.json`. Projects may also include an optional `config.json` sidecar next to `rules-config.json`.
+
+`rules-config.json` is the template/runtime configuration file.
+
+`config.json` is intended for local project layout overrides, especially path aliases that differ across repositories.
 
 Key fields include:
 
@@ -198,13 +212,38 @@ Key fields include:
 - `prompt`
 - `extends`
 
-The CLI merges config through `extends` recursively.
+The CLI merges config through `extends` recursively, then merges the local sidecar `config.json` on top when present.
 
 Merge behavior:
 
 - scalar fields: child overrides parent
 - arrays: merged and deduplicated
 - objects/maps: shallow merge, child wins on conflict
+
+Example local layout override:
+
+```json
+{
+  "pathAliases": {
+    "@controller": "app/controllers",
+    "@service": "app/services"
+  }
+}
+```
+
+Rules may use these aliases in `context`, `detect.where`, `detect.import`, and `detect.include`:
+
+```md
+detect:
+  include: "@repository/**"
+  where: filePath in @controller/**
+context:
+  - @service
+```
+
+The CLI resolves aliases before evidence collection and prompt generation.
+
+`doctor` and `audit` emit a prominent warning when a configured alias points to a path that does not exist, and direct the user to update `.ai-rules/config.json`.
 
 ## Detection Model
 

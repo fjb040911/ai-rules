@@ -1,3 +1,4 @@
+const fs = require("fs/promises");
 const path = require("path");
 const { readJson } = require("../../utils/fs");
 
@@ -20,6 +21,12 @@ async function loadConfigInternal(configPath, seen) {
   if (basePath) {
     const parent = await loadConfigInternal(basePath, seen);
     merged = mergeConfigs(parent, merged);
+  }
+
+  const localConfigPath = path.join(path.dirname(configPath), "config.json");
+  if (await fileExists(localConfigPath)) {
+    const localConfig = await readJson(localConfigPath);
+    merged = mergeConfigs(merged, localConfig);
   }
 
   delete merged.extends;
@@ -94,6 +101,15 @@ function mergeStringArrayMap(parent, child) {
 
 function cloneConfig(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+async function fileExists(targetPath) {
+  try {
+    await fs.access(targetPath);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 module.exports = {

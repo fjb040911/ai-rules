@@ -1,0 +1,8 @@
+{
+  "pathAliases": {
+    "@src": "src",
+    "@app": "app",
+    "@tests": "tests",
+    "@scripts": "scripts"
+  }
+}

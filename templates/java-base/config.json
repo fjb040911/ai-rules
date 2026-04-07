@@ -1,0 +1,12 @@
+{
+  "pathAliases": {
+    "@mainJava": "src/main/java",
+    "@controller": "src/main/java/**/controller",
+    "@service": "src/main/java/**/service",
+    "@repository": "src/main/java/**/repository",
+    "@dto": "src/main/java/**/dto",
+    "@exception": "src/main/java/**/exception",
+    "@advice": "src/main/java/**/advice",
+    "@testJava": "src/test/java"
+  }
+}

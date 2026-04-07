@@ -7,7 +7,9 @@ const { execFile } = require("child_process");
 const { promisify } = require("util");
 
 const { loadConfig } = require("../cli/src/core/config/load-config");
+const { validatePathAliases, pathAliasProbePath } = require("../cli/src/core/config/validate-config");
 const { parseRules } = require("../cli/src/core/rules/parse-rules");
+const { resolveRulePaths } = require("../cli/src/core/rules/resolve-rules");
 const { validateRules } = require("../cli/src/core/rules/validate-rules");
 const { collectEvidence } = require("../cli/src/core/evidence/collect");
 const { buildAuditPrompt } = require("../cli/src/core/prompt/build-audit-prompt");
@@ -75,6 +77,100 @@ test("loadConfig merges extends chains", async () => {
     repairSystem: "child.repair",
   });
 });
+
+test("loadConfig merges optional sidecar config.json", async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-rules-sidecar-config-"));
+  const configPath = path.join(tempDir, "rules-config.json");
+  const sidecarPath = path.join(tempDir, "config.json");
+
+  await fs.writeFile(
+    configPath,
+    JSON.stringify({
+      stack: "spring",
+      enabledRuleIds: ["RULE-001"],
+      scopes: ["architecture"],
+      pathAliases: {
+        "@service": "src/main/java/**/service",
+      },
+    }),
+    "utf8"
+  );
+
+  await fs.writeFile(
+    sidecarPath,
+    JSON.stringify({
+      pathAliases: {
+        "@service": "app/services",
+        "@controller": "app/controllers",
+      },
+      thresholds: {
+        maxFunctionLines: 80,
+      },
+    }),
+    "utf8"
+  );
+
+  const config = await loadConfig(configPath);
+
+  assert.deepEqual(config.pathAliases, {
+    "@service": "app/services",
+    "@controller": "app/controllers",
+  });
+  assert.deepEqual(config.thresholds, {
+    maxFunctionLines: 80,
+  });
+});
+
+test("validatePathAliases warns when configured paths do not exist", async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-rules-alias-warning-"));
+  await fs.mkdir(path.join(tempDir, ".ai-rules"), { recursive: true });
+  await fs.mkdir(path.join(tempDir, "src"), { recursive: true });
+
+  assert.equal(pathAliasProbePath("src/main/java/**/controller"), "src/main/java");
+  assert.equal(pathAliasProbePath("src/(components|pages|views)"), "src");
+
+  const findings = await validatePathAliases({
+    cwd: tempDir,
+    configDir: path.join(tempDir, ".ai-rules"),
+    pathAliases: {
+      "@ok": "src/(components|pages|views)",
+      "@missing": "app/controllers",
+    },
+  });
+
+  assert.equal(findings.length, 1);
+  assert.match(findings[0].message, /IMPORTANT: pathAliases\.@missing/);
+  assert.match(findings[0].message, /\.ai-rules\/config\.json/);
+});
+
+
+test("resolveRulePaths expands path aliases in context and detect.where", () => {
+  const rules = resolveRulePaths(
+    [
+      {
+        id: "RULE-001",
+        context: ["@service", "@controller/**"],
+        detect: {
+          import: "@service/**",
+          include: "@controller/**",
+          where: "filePath in @controller/**",
+        },
+      },
+    ],
+    {
+      pathAliases: {
+        "@service": "app/services",
+        "@controller": "app/controllers",
+      },
+    }
+  );
+
+  assert.deepEqual(rules[0].context, ["app/services", "app/controllers/**"]);
+  assert.equal(rules[0].detect.where, "filePath in app/controllers/**");
+  assert.equal(rules[0].detect.import, "app/services/**");
+  assert.equal(rules[0].detect.include, "app/controllers/**");
+});
+
 
 test("parseRules resolves extends and preserves rule fields", async () => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-rules-rules-"));
@@ -419,11 +515,66 @@ test("doctor reports invalid thresholds and exceptions", async () => {
   );
 });
 
+test("doctor warns when pathAliases point to missing paths", async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-rules-doctor-alias-"));
+  const aiRulesDir = path.join(tempDir, ".ai-rules");
+  await fs.mkdir(aiRulesDir, { recursive: true });
+  await fs.writeFile(
+    path.join(aiRulesDir, "rules-config.json"),
+    JSON.stringify({
+      rulesFile: ".ai-rules.md",
+      enabledRuleIds: ["RULE-001"],
+      scopes: ["security"],
+    }),
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(aiRulesDir, "config.json"),
+    JSON.stringify({
+      pathAliases: {
+        "@missing": "app/controllers",
+      },
+    }),
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(aiRulesDir, ".ai-rules.md"),
+    [
+      "### RULE: RULE-001",
+      "severity: WARN",
+      "scope: security",
+      "intent: Keep things safe",
+      "",
+      "detect:",
+      "  regex: \"secret\"",
+      "fix: Remove the secret",
+      "prompt:",
+      "  violation: Secret found",
+      "  requirement: Secrets must not be committed",
+      "  solution: Move secrets to secure config",
+      "",
+    ].join("\n"),
+    "utf8"
+  );
+
+  const cliPath = path.join(__dirname, "..", "cli", "src", "index.js");
+  const { stdout } = await execFileAsync(process.execPath, [cliPath, "doctor"], { cwd: tempDir });
+
+  assert.match(stdout, /IMPORTANT: pathAliases\.@missing/);
+  assert.match(stdout, /\.ai-rules\/config\.json/);
+});
+
+
 test("current expanded templates parse and validate", async () => {
   const templateConfigs = [
     path.join(__dirname, "..", "templates", "frontend-base", "rules-config.json"),
+    path.join(__dirname, "..", "templates", "frontend-base", "react-ts", "rules-config.json"),
+    path.join(__dirname, "..", "templates", "frontend-base", "vue", "rules-config.json"),
+    path.join(__dirname, "..", "templates", "python-base", "rules-config.json"),
     path.join(__dirname, "..", "templates", "python-base", "python-fastapi", "rules-config.json"),
+    path.join(__dirname, "..", "templates", "java-base", "rules-config.json"),
     path.join(__dirname, "..", "templates", "java-base", "java-spring", "rules-config.json"),
+    path.join(__dirname, "..", "templates", "c-cpp", "rules-config.json"),
   ];
 
   for (const configPath of templateConfigs) {

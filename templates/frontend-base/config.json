@@ -1,0 +1,20 @@
+{
+  "pathAliases": {
+    "@src": "src",
+    "@uiEntry": "src/(components|pages|views)",
+    "@components": "src/components",
+    "@pages": "src/pages",
+    "@views": "src/views",
+    "@ui": "src/components/ui",
+    "@services": "src/services",
+    "@apiClient": "src/api/client.ts",
+    "@data": "src/data",
+    "@composables": "src/composables",
+    "@utils": "src/utils",
+    "@sanitize": "src/utils/sanitize",
+    "@config": "src/config",
+    "@hooks": "src/hooks",
+    "@types": "src/types",
+    "@public": "public"
+  }
+}

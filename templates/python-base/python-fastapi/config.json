@@ -1,0 +1,10 @@
+{
+  "pathAliases": {
+    "@api": "app/api",
+    "@service": "app/services",
+    "@repo": "app/repositories",
+    "@schema": "app/schemas",
+    "@core": "app/core",
+    "@db": "app/db"
+  }
+}

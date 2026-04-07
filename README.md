@@ -2,6 +2,22 @@
 
 AI-RULES is a rule-aware CLI for AI-assisted coding governance. It turns project rules in Markdown into structured rule metadata, lightweight local evidence, and deterministic audit/fix prompts so AI coding agents follow your architecture, design patterns, and UI standards more consistently.
 
+## Why AI-RULES
+
+AI coding agents are powerful, but they often write "generally correct" code instead of code that fits your repository's real architecture. They may call data layers from UI components, bypass service boundaries, ignore project-specific directories, leak secrets in logs, or return audit reports in shapes that downstream repair flows cannot reliably consume.
+
+AI-RULES gives those agents a project-local operating contract before code reaches review, CI, or merge gates. It packages your engineering standards into `.ai-rules.md`, `rules-config.json`, and `config.json`, then turns them into rule-aware audit and fix prompts with enabled rules, severity thresholds, local evidence, path aliases, exceptions, and repair guidance.
+
+The practical benefits are:
+
+- AI-generated code is more likely to follow your architecture and layering rules from the start.
+- Reviews become faster because repeated violations are encoded once instead of explained every time.
+- Prompts become more deterministic because rules, paths, severity, and report schema are structured.
+- Non-standard repository layouts are handled through `config.json` path aliases instead of editing every rule.
+- Audit and repair workflows become more stable across Codex, Cursor, Claude Code, or any prompt-driven coding setup.
+
+In short: repository governance tools protect the merge boundary; AI-RULES guides the AI while it is still writing and repairing code.
+
 ## What It Does
 
 - Initializes reusable rule templates for different stacks
@@ -132,9 +148,11 @@ Example layout:
 .ai-rules/
 ├── .ai-rules.md
 ├── rules-config.json
+├── config.json
 ├── base/
 │   ├── .ai-rules.md
-│   └── rules-config.json
+│   ├── rules-config.json
+│   └── config.json
 └── cache/
     └── audit-context.json
 ```
@@ -248,6 +266,37 @@ context:
   - src/services/
   - src/api/client.ts
 ```
+
+## Project Path Config
+
+Templates can provide an optional `.ai-rules/config.json` file for user-specific project layout overrides. This file is merged on top of `rules-config.json`, so users can adjust directory conventions without editing every rule.
+
+Example:
+
+```json
+{
+  "pathAliases": {
+    "@controller": "app/controllers",
+    "@service": "app/services",
+    "@repository": "app/repositories",
+    "@config": "app/config"
+  }
+}
+```
+
+Rules can reference those aliases in `context`, `detect.where`, `detect.import`, and `detect.include`:
+
+```md
+detect:
+  include: "@repository/**"
+  where: filePath in @controller/**
+context:
+  - @service
+```
+
+At audit/fix time, the CLI resolves aliases before collecting evidence or building prompts.
+
+`ai-law doctor` and `ai-law audit` warn prominently when a configured alias points to a path that does not exist. If this happens, open `.ai-rules/config.json` and adjust `pathAliases` to match your repository layout.
 
 ## Detection Support
 

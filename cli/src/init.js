@@ -9,6 +9,7 @@ const {
   getTemplatesRoot,
   renderRulesMarkdown,
   renderConfigJson,
+  renderLocalConfigJson,
 } = require("./utils/templates");
 
 async function runInit() {
@@ -112,6 +113,7 @@ async function selectTemplate(templatesRoot) {
 async function writeRuleSet(templateDir, outDir, locale, override) {
   const rulesPath = path.join(templateDir, ".ai-rules.md");
   const configPath = path.join(templateDir, "rules-config.json");
+  const localConfigPath = path.join(templateDir, "config.json");
 
   const localeMap = await readLocaleMap(locale);
   const renderedRules = await renderRulesMarkdown(rulesPath, localeMap, {
@@ -127,6 +129,15 @@ async function writeRuleSet(templateDir, outDir, locale, override) {
     JSON.stringify(renderedConfig, null, 2) + "\n",
     "utf8"
   );
+
+  if (await fileExists(localConfigPath)) {
+    const renderedLocalConfig = await renderLocalConfigJson(localConfigPath);
+    await fs.writeFile(
+      path.join(outDir, "config.json"),
+      JSON.stringify(renderedLocalConfig, null, 2) + "\n",
+      "utf8"
+    );
+  }
 }
 
 async function readLocaleMap(locale) {

@@ -1,0 +1,12 @@
+{
+  "pathAliases": {
+    "@src": "src",
+    "@app": "src/app",
+    "@domain": "src/domain",
+    "@infra": "src/infra",
+    "@adapter": "src/adapter",
+    "@include": "src/include",
+    "@common": "src/common",
+    "@tests": "tests"
+  }
+}

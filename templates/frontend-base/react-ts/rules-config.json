@@ -22,11 +22,6 @@
     "react",
     "ui"
   ],
-  "pathAliases": {
-    "@components": "src/components",
-    "@services": "src/services",
-    "@ui": "src/components/ui"
-  },
   "detectOptions": {
     "include": [
       "src/**/*.{ts,tsx}"

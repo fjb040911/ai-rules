@@ -4,7 +4,9 @@ const { writeOutput } = require("./utils/output");
 const { readJson } = require("./utils/fs");
 const { getTemplatesRoot } = require("./utils/templates");
 const { loadConfig } = require("./core/config/load-config");
+const { validateConfig } = require("./core/config/validate-config");
 const { parseRules } = require("./core/rules/parse-rules");
+const { resolveRulePaths } = require("./core/rules/resolve-rules");
 const { validateRules } = require("./core/rules/validate-rules");
 const { collectEvidence } = require("./core/evidence/collect");
 const { buildAuditPrompt } = require("./core/prompt/build-audit-prompt");
@@ -18,13 +20,12 @@ async function runAudit(argv) {
   const context = await buildAuditContext({ cwd: process.cwd(), localeMap });
 
   if (context.findings.some((item) => item.level === "error")) {
-    for (const finding of context.findings) {
-      const prefix = finding.level === "error" ? "ERROR" : "WARN";
-      process.stderr.write(`[${prefix}] ${finding.message}\n`);
-    }
+    printFindings(context.findings);
     process.exitCode = 1;
     return;
   }
+
+  printFindings(context.findings.filter((item) => item.level === "warn"));
 
   if (dumpContext) {
     await writeAuditContext(process.cwd(), context);
@@ -102,8 +103,11 @@ async function buildAuditContext({ cwd, localeMap }) {
   const config = await loadConfig(configPath);
   const rulesFile = config.rulesFile || ".ai-rules.md";
   const rulesPath = path.join(cwd, ".ai-rules", rulesFile);
-  const rules = await parseRules(rulesPath);
-  const findings = validateRules({ rules, config });
+  const rules = resolveRulePaths(await parseRules(rulesPath), config);
+  const findings = [
+    ...(await validateConfig({ config, cwd, configDir: path.join(cwd, ".ai-rules") })),
+    ...validateRules({ rules, config }),
+  ];
   const evidence = await collectEvidence({ cwd, config, rules });
 
   return {
@@ -115,6 +119,15 @@ async function buildAuditContext({ cwd, localeMap }) {
     evidence,
     findings,
   };
+}
+
+function printFindings(findings) {
+  for (const finding of findings) {
+    const prefix = finding.level === "error" ? "ERROR" : "WARNING";
+    process.stderr.write(`\n========== AI-RULES ${prefix} ==========\n`);
+    process.stderr.write(`${finding.message}\n`);
+    process.stderr.write("========================================\n");
+  }
 }
 
 async function writeAuditContext(cwd, context) {

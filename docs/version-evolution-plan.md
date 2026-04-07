@@ -1,6 +1,6 @@
 # AI-RULES Version Evolution Plan
 
-> This document defines the recommended evolution path after `v0.5.7`. It assumes `v0.5.7` has completed the high-value rule expansion, `thresholds`, `exceptions`, and the related quality gates.
+> This document defines the recommended evolution path after `v0.6.0`. It assumes `v0.5.7` completed the high-value rule expansion, `thresholds`, and `exceptions`, and `v0.6.0` completed project-layout configuration hardening through `config.json`, path aliases, alias warnings, and stronger AI prompt guidance.
 
 ---
 
@@ -13,6 +13,9 @@ AI-RULES is no longer only a prompt template generator. The current baseline inc
 - local evidence collection for `regex` and `import/include`
 - AI-guided handling for `ast` and `semantic` rules
 - `thresholds` and `exceptions` config support
+- optional `config.json` sidecar support for project-specific layout overrides
+- path alias resolution in `context`, `detect.where`, `detect.import`, and `detect.include`
+- visible warnings when configured path aliases do not match the local repository layout
 - rule-aware audit prompt generation
 - report normalization and validation
 - enriched fix prompt generation
@@ -42,7 +45,39 @@ This keeps every version useful and avoids a risky big-bang rewrite.
 
 ## 3. Version Path
 
-## v0.5.8: Audit UX And Lightweight Metrics
+## v0.6.0: Project Layout Config And Rule Consumption Hardening
+
+### Status
+
+Implemented as the current improvement version.
+
+### Scope
+
+- Add optional `.ai-rules/config.json` sidecar support
+- Move template path aliases out of `rules-config.json`
+- Resolve aliases before audit/fix prompt generation
+- Resolve aliases in:
+  - `context`
+  - `detect.where`
+  - `detect.import`
+  - `detect.include`
+- Warn prominently when configured aliases point to paths that do not exist
+- Strengthen prompt guidance so AI agents consume:
+  - `.ai-rules/rules-config.json`
+  - `.ai-rules/config.json`
+  - `.ai-rules/.ai-rules.md`
+- Update docs and tests
+
+### Acceptance Criteria
+
+- Users can adapt generated rules to non-standard project layouts by editing `.ai-rules/config.json`
+- `audit` and `doctor` warn when alias paths look wrong
+- Rule path aliases are resolved before evidence collection and prompt generation
+- Existing `rules-config.json` inheritance behavior remains compatible
+
+---
+
+## v0.6.1: Audit UX And Lightweight Metrics
 
 ### Goal
 
@@ -94,7 +129,7 @@ Make AI-RULES easier to understand before users hand the prompt to an AI agent.
 
 ---
 
-## v0.5.9: Report And Evidence Loop Hardening
+## v0.6.2: Report And Evidence Loop Hardening
 
 ### Goal
 
@@ -130,7 +165,7 @@ Make the `audit -> report -> validate-report -> fix` loop more stable and easier
 
 ---
 
-## v0.6.0: JS/TS AST Foundation
+## v0.7.0: JS/TS AST Foundation
 
 ### Goal
 
@@ -164,7 +199,7 @@ Move selected frontend rules from AI-only guidance toward stronger deterministic
 
 ---
 
-## v0.6.1: Count And AST Refinement
+## v0.7.1: Count And AST Refinement
 
 ### Goal
 
@@ -197,7 +232,7 @@ Improve evidence quality after the first AST layer lands.
 
 ---
 
-## v0.7.0: Template Ecosystem Expansion
+## v0.8.0: Template Ecosystem Expansion
 
 ### Goal
 
@@ -230,7 +265,7 @@ Expand AI-RULES from built-in templates toward a reusable rule-pack model.
 
 ---
 
-## v0.7.0+: Enterprise And Platform Track
+## v0.8.0+: Enterprise And Platform Track
 
 ### Goal
 
@@ -265,24 +300,25 @@ Avoid language like:
 
 | Priority | Version | Item | Reason |
 |---------|---------|------|--------|
-| P0 | v0.5.8 | `audit --summary` | Fast UX win and easier debugging |
-| P0 | v0.5.8 | `audit --dry-run` | Helps users understand coverage before prompt generation |
-| P0 | v0.5.8 | `count:function-lines` | Low-risk deterministic evidence |
-| P0 | v0.5.8 | `count:params-count` | Low-risk deterministic evidence |
-| P1 | v0.5.9 | `evidenceId` linkage | Stabilizes audit/report/fix loop |
-| P1 | v0.5.9 | deterministic `fix --all` ordering | Improves batch repair usability |
-| P1 | v0.5.9 | report grouping options | Makes large reports easier to consume |
-| P2 | v0.6.0 | JS/TS AST foundation | Unlocks credible structural frontend rules |
-| P2 | v0.6.0 | narrow call-chain proof-of-concept | Useful only after AST groundwork |
-| P3 | v0.7.0 | Node.js backend template | Best template expansion after JS/TS AST support |
-| P3 | v0.7.0 | rule-pack authoring docs | Prepares ecosystem growth |
-| P4 | v0.7.0+ | enterprise/privacy packs | Valuable but high maintenance |
+| P0 | v0.6.0 | `config.json` sidecar and path alias warning | Current project-layout hardening release |
+| P0 | v0.6.1 | `audit --summary` | Fast UX win and easier debugging |
+| P0 | v0.6.1 | `audit --dry-run` | Helps users understand coverage before prompt generation |
+| P0 | v0.6.1 | `count:function-lines` | Low-risk deterministic evidence |
+| P0 | v0.6.1 | `count:params-count` | Low-risk deterministic evidence |
+| P1 | v0.6.2 | `evidenceId` linkage | Stabilizes audit/report/fix loop |
+| P1 | v0.6.2 | deterministic `fix --all` ordering | Improves batch repair usability |
+| P1 | v0.6.2 | report grouping options | Makes large reports easier to consume |
+| P2 | v0.7.0 | JS/TS AST foundation | Unlocks credible structural frontend rules |
+| P2 | v0.7.0 | narrow call-chain proof-of-concept | Useful only after AST groundwork |
+| P3 | v0.8.0 | Node.js backend template | Best template expansion after JS/TS AST support |
+| P3 | v0.8.0 | rule-pack authoring docs | Prepares ecosystem growth |
+| P4 | v0.8.0+ | enterprise/privacy packs | Valuable but high maintenance |
 
 ---
 
 ## 5. Recommended Immediate Next Step
 
-Start with `v0.5.8` in this order:
+Start with `v0.6.1` in this order:
 
 1. Implement `audit --summary`.
 2. Implement `audit --dry-run`.
@@ -308,6 +344,6 @@ Every version should satisfy:
 
 ---
 
-**Document version**: 0.1.0  
+**Document version**: 0.2.0  
 **Last updated**: 2026-04-07  
 **Maintainer**: Gavin Fang

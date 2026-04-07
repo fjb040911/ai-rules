@@ -31,12 +31,6 @@
     "api",
     "async"
   ],
-  "pathAliases": {
-    "@api": "app/api",
-    "@service": "app/services",
-    "@repo": "app/repositories",
-    "@schema": "app/schemas"
-  },
   "detectOptions": {
     "include": [
       "app/**/*.py",

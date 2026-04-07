@@ -170,6 +170,11 @@ async function renderConfigJson(filePath, localeMap, options) {
   return data;
 }
 
+async function renderLocalConfigJson(filePath) {
+  const content = await fs.readFile(filePath, "utf8");
+  return JSON.parse(content);
+}
+
 function resolve(localeMap, key) {
   return localeMap[key] || key;
 }
@@ -179,4 +184,5 @@ module.exports = {
   buildTemplateChoices,
   renderRulesMarkdown,
   renderConfigJson,
+  renderLocalConfigJson,
 };

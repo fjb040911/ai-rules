@@ -34,7 +34,6 @@
     "typescript",
     "style"
   ],
-  "pathAliases": {},
   "detectOptions": {
     "include": [
       "src/**/*.{ts,tsx,js,jsx,vue}",

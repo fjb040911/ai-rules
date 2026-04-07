@@ -37,13 +37,6 @@
     "security",
     "test"
   ],
-  "pathAliases": {
-    "@app": "src/app",
-    "@domain": "src/domain",
-    "@infra": "src/infra",
-    "@adapter": "src/adapter",
-    "@include": "src/include"
-  },
   "detectOptions": {
     "include": [
       "src/**/*.{c,cc,cpp,cxx,h,hh,hpp,hxx}",
