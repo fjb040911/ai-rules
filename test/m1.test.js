@@ -14,6 +14,7 @@ const { validateRules } = require("../cli/src/core/rules/validate-rules");
 const { collectEvidence } = require("../cli/src/core/evidence/collect");
 const { buildAuditPrompt } = require("../cli/src/core/prompt/build-audit-prompt");
 const { normalizeReport } = require("../cli/src/core/report/normalize");
+const { readLocaleMap } = require("../cli/src/utils/templates");
 
 const execFileAsync = promisify(execFile);
 
@@ -169,6 +170,15 @@ test("resolveRulePaths expands path aliases in context and detect.where", () => 
   assert.equal(rules[0].detect.where, "filePath in app/controllers/**");
   assert.equal(rules[0].detect.import, "app/services/**");
   assert.equal(rules[0].detect.include, "app/controllers/**");
+});
+
+test("readLocaleMap supports additional locales with English fallback", async () => {
+  for (const locale of ["zh-TW", "ja", "ko", "es", "fr"]) {
+    const localeMap = await readLocaleMap(locale);
+    assert.ok(localeMap["template.frontend-base.title"]);
+    assert.ok(localeMap["rule.ARCH-101.intent"]);
+    assert.notEqual(localeMap["template.frontend-base.title"], "AI-RULES Frontend Base Template");
+  }
 });
 
 

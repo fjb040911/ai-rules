@@ -1,8 +1,7 @@
 const path = require("path");
 const fs = require("fs/promises");
 const inquirer = require("inquirer");
-const { readJson } = require("./utils/fs");
-const { getTemplatesRoot } = require("./utils/templates");
+const { readLocaleMap } = require("./utils/templates");
 const { writeOutput } = require("./utils/output");
 
 const prompt = inquirer.prompt || (inquirer.default && inquirer.default.prompt);
@@ -115,27 +114,6 @@ async function selectProvider() {
   ]);
 
   return resolveProvider(provider);
-}
-
-async function readLocaleMap(locale) {
-  const templatesRoot = getTemplatesRoot();
-  const localePath = path.join(templatesRoot, "i18n", `${locale}.json`);
-
-  try {
-    await fs.access(localePath);
-    return readJson(localePath);
-  } catch {
-    if (locale === "en") {
-      throw new Error("Default locale 'en' not found in templates/i18n.");
-    }
-    const fallbackPath = path.join(templatesRoot, "i18n", "en.json");
-    const exists = await fileExists(fallbackPath);
-    if (!exists) {
-      throw new Error("Fallback locale 'en' not found in templates/i18n.");
-    }
-    process.stderr.write(`Locale '${locale}' not found. Falling back to en.\n`);
-    return readJson(fallbackPath);
-  }
 }
 
 function buildSetupPrompt(localeMap, provider) {

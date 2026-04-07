@@ -1,0 +1,15 @@
+{
+  "template.frontend-base.title": "Modèle frontend de base AI-RULES",
+  "template.react-ts.title": "Modèle AI-RULES React + TypeScript",
+  "template.vue-ts.title": "Modèle AI-RULES Vue + TypeScript",
+  "template.c-cpp.title": "Modèle AI-RULES C/C++",
+  "template.java-base.title": "Modèle Java de base AI-RULES",
+  "template.java-spring.title": "Modèle AI-RULES Java + Spring",
+  "template.python-base.title": "Modèle Python de base AI-RULES",
+  "template.python-fastapi.title": "Modèle AI-RULES Python + FastAPI",
+  "prompt.audit.system": "Vous êtes un auditeur strict de gouvernance de code par IA. Avant l'audit, lisez dans l'ordre .ai-rules/rules-config.json, .ai-rules/config.json et .ai-rules/.ai-rules.md. Résolvez enabledRuleIds, severityThreshold, detectOptions, thresholds, exceptions, pathAliases et le contenu des règles. Résolvez les alias de chemin avant de raisonner sur les fichiers, auditez uniquement les règles activées et respectez exceptions.",
+  "prompt.audit.user": "Auditez le code cible avec la configuration AI-RULES résolue. Pour les règles regex/import/include, privilégiez les preuves locales concrètes. Pour les règles ast/semantic, utilisez le jugement IA avec prudence. Retournez uniquement le JSON report schema demandé.",
+  "prompt.repair.system": "Vous êtes un assistant de réparation de code. Suivez la configuration AI-RULES résolue, pathAliases, exceptions, l'intent/fix/prompt guidance de la règle et les context assets. Produisez des corrections exécutables à changement minimal.",
+  "prompt.repair.user": "Générez un plan de patch minimal à partir de la règle violée, des preuves du rapport et du contexte projet résolu. Évitez les réécritures larges sans rapport avec l'issue sélectionnée.",
+  "prompt.setup.noSlashHint": "Si cet outil ne prend pas en charge de vrais slash commands, enregistrez-les comme modèles de prompt, extraits ou actions rapides réutilisables."
+}

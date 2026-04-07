@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.svg" alt="AI-RULES logo" width="720">
+</p>
+
 # AI-RULES
 
 AI-RULES is a rule-aware CLI for AI-assisted coding governance. It turns project rules in Markdown into structured rule metadata, lightweight local evidence, and deterministic audit/fix prompts so AI coding agents follow your architecture, design patterns, and UI standards more consistently.
@@ -88,6 +92,20 @@ AI-RULES is not a full static analysis engine yet.
 - `regex` and `import/include` detection can collect local evidence
 - `ast` and `semantic` rules are still AI-guided and treated as `ai-only`
 - The CLI helps structure context and outputs, while the AI still makes the final audit decision
+
+## Language Support
+
+Built-in locale files are available for:
+
+- `zh-CN`: Simplified Chinese, complete
+- `en`: English, complete
+- `zh-TW`: Traditional Chinese, partial, falls back to English
+- `ja`: Japanese, partial, falls back to English
+- `ko`: Korean, partial, falls back to English
+- `es`: Spanish, partial, falls back to English
+- `fr`: French, partial, falls back to English
+
+The partial locales currently translate the core template names and prompt instructions. Missing rule-level text automatically falls back to English so new languages remain usable while translations are expanded over time.
 
 ## Installation
 

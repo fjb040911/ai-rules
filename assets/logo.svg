@@ -1,0 +1,54 @@
+<svg width="960" height="320" viewBox="0 0 960 320" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">AI-RULES logo</title>
+  <desc id="desc">A shield-shaped mark with code brackets and connected rule nodes, followed by the AI-RULES wordmark.</desc>
+  <defs>
+    <linearGradient id="shieldGradient" x1="82" y1="40" x2="260" y2="286" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#16A34A"/>
+      <stop offset="0.52" stop-color="#0F766E"/>
+      <stop offset="1" stop-color="#0F172A"/>
+    </linearGradient>
+    <linearGradient id="accentGradient" x1="97" y1="84" x2="238" y2="231" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FDE68A"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+    <filter id="softShadow" x="34" y="18" width="268" height="286" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="14"/>
+      <feGaussianBlur stdDeviation="16"/>
+      <feComposite in2="hardAlpha" operator="out"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0.02 0 0 0 0 0.08 0 0 0 0 0.12 0 0 0 0.18 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow" result="shape"/>
+    </filter>
+  </defs>
+
+  <rect width="960" height="320" rx="48" fill="#F8FAFC"/>
+  <path d="M38 279C96 231 111 91 186 71C244 55 262 142 333 100C389 67 413 24 468 43C530 64 519 145 588 160C666 177 680 95 749 99C836 104 900 192 916 279H38Z" fill="#ECFDF5"/>
+
+  <g filter="url(#softShadow)">
+    <path d="M168 42L260 76V145C260 207 222 262 168 282C114 262 76 207 76 145V76L168 42Z" fill="url(#shieldGradient)"/>
+    <path d="M168 60L242 87V146C242 196 212 240 168 259C124 240 94 196 94 146V87L168 60Z" stroke="white" stroke-opacity="0.24" stroke-width="3"/>
+  </g>
+
+  <path d="M140 123L111 152L140 181" stroke="white" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M196 123L225 152L196 181" stroke="white" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M177 114L159 190" stroke="url(#accentGradient)" stroke-width="13" stroke-linecap="round"/>
+
+  <path d="M121 219H214" stroke="white" stroke-opacity="0.9" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="121" cy="219" r="12" fill="#FDE68A" stroke="#0F172A" stroke-opacity="0.14" stroke-width="3"/>
+  <circle cx="168" cy="219" r="12" fill="#67E8F9" stroke="#0F172A" stroke-opacity="0.14" stroke-width="3"/>
+  <circle cx="214" cy="219" r="12" fill="#BBF7D0" stroke="#0F172A" stroke-opacity="0.14" stroke-width="3"/>
+
+  <text x="334" y="147" fill="#0F172A" font-family="Avenir Next, Montserrat, Segoe UI, sans-serif" font-size="74" font-weight="800" letter-spacing="2">AI-RULES</text>
+  <text x="339" y="199" fill="#334155" font-family="Avenir Next, Montserrat, Segoe UI, sans-serif" font-size="28" font-weight="600" letter-spacing="0.5">Project-local rules for AI coding agents</text>
+
+  <g opacity="0.86">
+    <rect x="340" y="225" width="154" height="42" rx="21" fill="#DCFCE7"/>
+    <text x="367" y="253" fill="#166534" font-family="Avenir Next, Montserrat, Segoe UI, sans-serif" font-size="18" font-weight="700">audit</text>
+    <rect x="512" y="225" width="142" height="42" rx="21" fill="#CCFBF1"/>
+    <text x="544" y="253" fill="#115E59" font-family="Avenir Next, Montserrat, Segoe UI, sans-serif" font-size="18" font-weight="700">fix</text>
+    <rect x="672" y="225" width="178" height="42" rx="21" fill="#E0F2FE"/>
+    <text x="703" y="253" fill="#075985" font-family="Avenir Next, Montserrat, Segoe UI, sans-serif" font-size="18" font-weight="700">evidence</text>
+  </g>
+</svg>

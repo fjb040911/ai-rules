@@ -125,6 +125,20 @@ CLI 会在项目根目录创建：
 
 在 `init` 阶段，分支模板会将基座物化到 `.ai-rules/base/`，主规则与主配置再指向这些 base 文件。
 
+## 本地化模型
+
+当前内置 locale 文件包括：
+
+- `zh-CN`：完整
+- `en`：完整
+- `zh-TW`：部分翻译，回退英文
+- `ja`：部分翻译，回退英文
+- `ko`：部分翻译，回退英文
+- `es`：部分翻译，回退英文
+- `fr`：部分翻译，回退英文
+
+部分 locale 目前主要翻译核心模板名称和 Prompt 指令。CLI 会将所选 locale 合并到英文之上，因此缺失的翻译 key 会自动回退为可读英文，而不是在生成的规则文件或 Prompt 中暴露原始 i18n key。locale 元数据放在 `templates/i18n/locale-meta.json`，用于在交互式选择语言时清晰标注 partial 状态。
+
 ## 规则文档模型
 
 规则写在 `.ai-rules.md` 中，使用 `RULE` block 表达。

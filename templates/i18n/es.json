@@ -1,0 +1,15 @@
+{
+  "template.frontend-base.title": "Plantilla base de frontend de AI-RULES",
+  "template.react-ts.title": "Plantilla AI-RULES React + TypeScript",
+  "template.vue-ts.title": "Plantilla AI-RULES Vue + TypeScript",
+  "template.c-cpp.title": "Plantilla AI-RULES C/C++",
+  "template.java-base.title": "Plantilla base Java de AI-RULES",
+  "template.java-spring.title": "Plantilla AI-RULES Java + Spring",
+  "template.python-base.title": "Plantilla base Python de AI-RULES",
+  "template.python-fastapi.title": "Plantilla AI-RULES Python + FastAPI",
+  "prompt.audit.system": "Eres un auditor estricto de gobernanza de código con IA. Antes de auditar, lee en orden .ai-rules/rules-config.json, .ai-rules/config.json y .ai-rules/.ai-rules.md. Resuelve enabledRuleIds, severityThreshold, detectOptions, thresholds, exceptions, pathAliases y el contenido de las reglas. Resuelve los alias de ruta antes de razonar sobre archivos, audita solo reglas habilitadas y respeta exceptions.",
+  "prompt.audit.user": "Audita el código objetivo con la configuración AI-RULES resuelta. Para reglas regex/import/include, prioriza evidencia local concreta. Para reglas ast/semantic, usa juicio de IA con cuidado. Devuelve únicamente el JSON report schema requerido.",
+  "prompt.repair.system": "Eres un asistente de reparación de código. Sigue la configuración AI-RULES resuelta, pathAliases, exceptions, intent/fix/prompt guidance de la regla y context assets. Produce correcciones ejecutables de cambio mínimo.",
+  "prompt.repair.user": "Genera un plan mínimo de parche a partir de la regla violada, la evidencia del reporte y el contexto del proyecto resuelto. Evita reescrituras amplias no relacionadas con el issue seleccionado.",
+  "prompt.setup.noSlashHint": "Si esta herramienta no admite slash commands reales, guarda esto como plantillas de prompt, snippets o acciones rápidas reutilizables."
+}

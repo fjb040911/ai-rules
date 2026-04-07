@@ -2,7 +2,6 @@ const path = require("path");
 const fs = require("fs/promises");
 const inquirer = require("inquirer");
 const prompt = inquirer.prompt || (inquirer.default && inquirer.default.prompt);
-const { readJson } = require("./utils/fs");
 const { runSetup } = require("./setup");
 const {
   buildTemplateChoices,
@@ -10,6 +9,7 @@ const {
   renderRulesMarkdown,
   renderConfigJson,
   renderLocalConfigJson,
+  readLocaleMap,
 } = require("./utils/templates");
 
 async function runInit() {
@@ -75,9 +75,11 @@ async function runInit() {
 async function selectLocale(templatesRoot) {
   const i18nDir = path.join(templatesRoot, "i18n");
   const entries = await fs.readdir(i18nDir, { withFileTypes: true });
+  const localeMeta = await readLocaleMeta(i18nDir);
   const locales = entries
-    .filter((e) => e.isFile() && e.name.endsWith(".json"))
-    .map((e) => e.name.replace(/\.json$/, ""));
+    .filter((e) => e.isFile() && e.name.endsWith(".json") && e.name !== "locale-meta.json")
+    .map((e) => e.name.replace(/\.json$/, ""))
+    .sort(sortLocales);
 
   if (locales.length === 0) {
     throw new Error("No locales found in templates/i18n.");
@@ -88,11 +90,43 @@ async function selectLocale(templatesRoot) {
       type: "list",
       name: "locale",
       message: "Select locale",
-      choices: locales,
+      choices: locales.map((locale) => ({
+        name: formatLocaleChoice(locale, localeMeta[locale]),
+        value: locale,
+      })),
     },
   ]);
 
   return locale;
+}
+
+async function readLocaleMeta(i18nDir) {
+  const metaPath = path.join(i18nDir, "locale-meta.json");
+  try {
+    const content = await fs.readFile(metaPath, "utf8");
+    return JSON.parse(content);
+  } catch {
+    return {};
+  }
+}
+
+function sortLocales(left, right) {
+  const priority = ["zh-CN", "en"];
+  const leftPriority = priority.indexOf(left);
+  const rightPriority = priority.indexOf(right);
+  if (leftPriority >= 0 || rightPriority >= 0) {
+    return (leftPriority >= 0 ? leftPriority : 99) - (rightPriority >= 0 ? rightPriority : 99);
+  }
+  return left.localeCompare(right);
+}
+
+function formatLocaleChoice(locale, meta) {
+  if (!meta) {
+    return locale;
+  }
+
+  const coverage = meta.coverage === "partial" ? "partial, falls back to English" : "complete";
+  return `${locale} - ${meta.label} (${coverage})`;
 }
 
 async function selectTemplate(templatesRoot) {
@@ -138,12 +172,6 @@ async function writeRuleSet(templateDir, outDir, locale, override) {
       "utf8"
     );
   }
-}
-
-async function readLocaleMap(locale) {
-  const templatesRoot = getTemplatesRoot();
-  const localePath = path.join(templatesRoot, "i18n", `${locale}.json`);
-  return readJson(localePath);
 }
 
 async function fileExists(targetPath) {

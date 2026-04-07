@@ -175,6 +175,33 @@ async function renderLocalConfigJson(filePath) {
   return JSON.parse(content);
 }
 
+async function readLocaleMap(locale) {
+  const templatesRoot = getTemplatesRoot();
+  const fallbackPath = path.join(templatesRoot, "i18n", "en.json");
+  const fallback = await readJsonFile(fallbackPath);
+
+  if (!locale || locale === "en") {
+    return fallback;
+  }
+
+  const localePath = path.join(templatesRoot, "i18n", `${locale}.json`);
+  try {
+    const current = await readJsonFile(localePath);
+    return {
+      ...fallback,
+      ...current,
+    };
+  } catch {
+    process.stderr.write(`Locale '${locale}' not found. Falling back to en.\n`);
+    return fallback;
+  }
+}
+
+async function readJsonFile(filePath) {
+  const content = await fs.readFile(filePath, "utf8");
+  return JSON.parse(content);
+}
+
 function resolve(localeMap, key) {
   return localeMap[key] || key;
 }
@@ -185,4 +212,5 @@ module.exports = {
   renderRulesMarkdown,
   renderConfigJson,
   renderLocalConfigJson,
+  readLocaleMap,
 };

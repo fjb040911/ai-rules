@@ -125,6 +125,20 @@ Branch templates inherit from base templates through `extends`.
 
 During `init`, branch templates materialize their base into `.ai-rules/base/` and point the branch outputs to those base files.
 
+## Localization Model
+
+Built-in locale files currently include:
+
+- `zh-CN`: complete
+- `en`: complete
+- `zh-TW`: partial, falls back to English
+- `ja`: partial, falls back to English
+- `ko`: partial, falls back to English
+- `es`: partial, falls back to English
+- `fr`: partial, falls back to English
+
+The partial locales currently translate the core template names and prompt instructions. The CLI merges the selected locale on top of English, so missing translation keys fall back to readable English text instead of leaking raw i18n keys into generated rule files or prompts. Locale metadata is stored in `templates/i18n/locale-meta.json` so interactive selection can label partial languages clearly.
+
 ## Rule Document Model
 
 Rules are stored in `.ai-rules.md` using `RULE` blocks.

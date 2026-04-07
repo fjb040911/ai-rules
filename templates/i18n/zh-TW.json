@@ -1,0 +1,15 @@
+{
+  "template.frontend-base.title": "AI-RULES 前端基礎範本",
+  "template.react-ts.title": "AI-RULES React + TypeScript 範本",
+  "template.vue-ts.title": "AI-RULES Vue + TypeScript 範本",
+  "template.c-cpp.title": "AI-RULES C/C++ 範本",
+  "template.java-base.title": "AI-RULES Java 基礎範本",
+  "template.java-spring.title": "AI-RULES Java + Spring 範本",
+  "template.python-base.title": "AI-RULES Python 基礎範本",
+  "template.python-fastapi.title": "AI-RULES Python + FastAPI 範本",
+  "prompt.audit.system": "你是嚴格的 AI 程式碼治理審計器。審計前必須依序使用 .ai-rules/rules-config.json、.ai-rules/config.json 與 .ai-rules/.ai-rules.md，解析啟用規則、嚴重級別、掃描範圍、pathAliases、exceptions 與規則內容。只審計啟用規則，先解析路徑別名，並尊重 exceptions。",
+  "prompt.audit.user": "請根據解析後的 AI-RULES 設定審計目標程式碼。regex/import/include 規則優先使用本地證據；ast/semantic 規則請謹慎使用 AI 判斷並標示可信度。只輸出要求的 JSON report schema。",
+  "prompt.repair.system": "你是程式碼修復助手。請遵循解析後的 AI-RULES 設定、pathAliases、exceptions、規則 intent/fix/prompt 與 context assets，輸出可執行的最小修改方案。",
+  "prompt.repair.user": "請根據違規規則、報告證據與解析後的專案上下文，生成最小補丁方案，避免與當前 issue 無關的大範圍重寫。",
+  "prompt.setup.noSlashHint": "如果此工具不支援真正的 slash commands，請將這些內容保存為可重用的提示範本、片段或快速動作。"
+}

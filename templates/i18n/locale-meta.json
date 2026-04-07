@@ -1,0 +1,35 @@
+{
+  "zh-CN": {
+    "label": "Simplified Chinese",
+    "coverage": "complete"
+  },
+  "en": {
+    "label": "English",
+    "coverage": "complete"
+  },
+  "zh-TW": {
+    "label": "Traditional Chinese",
+    "coverage": "partial",
+    "fallback": "en"
+  },
+  "ja": {
+    "label": "Japanese",
+    "coverage": "partial",
+    "fallback": "en"
+  },
+  "ko": {
+    "label": "Korean",
+    "coverage": "partial",
+    "fallback": "en"
+  },
+  "es": {
+    "label": "Spanish",
+    "coverage": "partial",
+    "fallback": "en"
+  },
+  "fr": {
+    "label": "French",
+    "coverage": "partial",
+    "fallback": "en"
+  }
+}

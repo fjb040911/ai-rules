@@ -1,0 +1,47 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">AI-RULES icon</title>
+  <desc id="desc">A shield-shaped icon with code brackets and connected rule nodes.</desc>
+  <defs>
+    <linearGradient id="bgGradient" x1="70" y1="42" x2="442" y2="470" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ECFDF5"/>
+      <stop offset="0.58" stop-color="#F8FAFC"/>
+      <stop offset="1" stop-color="#E0F2FE"/>
+    </linearGradient>
+    <linearGradient id="shieldGradient" x1="141" y1="65" x2="370" y2="444" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#16A34A"/>
+      <stop offset="0.52" stop-color="#0F766E"/>
+      <stop offset="1" stop-color="#0F172A"/>
+    </linearGradient>
+    <linearGradient id="accentGradient" x1="173" y1="151" x2="331" y2="314" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FDE68A"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+    <filter id="softShadow" x="74" y="46" width="364" height="406" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="20"/>
+      <feGaussianBlur stdDeviation="22"/>
+      <feComposite in2="hardAlpha" operator="out"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0.02 0 0 0 0 0.08 0 0 0 0 0.12 0 0 0 0.24 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow" result="shape"/>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="url(#bgGradient)"/>
+  <path d="M45 421C94 372 115 247 173 229C222 214 249 280 304 242C353 208 367 147 421 157C466 165 484 306 490 421H45Z" fill="#DCFCE7" opacity="0.78"/>
+
+  <g filter="url(#softShadow)">
+    <path d="M256 67L384 115V214C384 303 331 383 256 416C181 383 128 303 128 214V115L256 67Z" fill="url(#shieldGradient)"/>
+    <path d="M256 93L356 130V216C356 287 316 350 256 379C196 350 156 287 156 216V130L256 93Z" stroke="white" stroke-opacity="0.24" stroke-width="7"/>
+  </g>
+
+  <path d="M219 183L178 224L219 265" stroke="white" stroke-width="25" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M293 183L334 224L293 265" stroke="white" stroke-width="25" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M269 172L243 281" stroke="url(#accentGradient)" stroke-width="22" stroke-linecap="round"/>
+
+  <path d="M190 323H322" stroke="white" stroke-opacity="0.9" stroke-width="14" stroke-linecap="round"/>
+  <circle cx="190" cy="323" r="22" fill="#FDE68A" stroke="#0F172A" stroke-opacity="0.14" stroke-width="5"/>
+  <circle cx="256" cy="323" r="22" fill="#67E8F9" stroke="#0F172A" stroke-opacity="0.14" stroke-width="5"/>
+  <circle cx="322" cy="323" r="22" fill="#BBF7D0" stroke="#0F172A" stroke-opacity="0.14" stroke-width="5"/>
+</svg>

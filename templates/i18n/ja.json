@@ -1,0 +1,15 @@
+{
+  "template.frontend-base.title": "AI-RULES フロントエンド基本テンプレート",
+  "template.react-ts.title": "AI-RULES React + TypeScript テンプレート",
+  "template.vue-ts.title": "AI-RULES Vue + TypeScript テンプレート",
+  "template.c-cpp.title": "AI-RULES C/C++ テンプレート",
+  "template.java-base.title": "AI-RULES Java 基本テンプレート",
+  "template.java-spring.title": "AI-RULES Java + Spring テンプレート",
+  "template.python-base.title": "AI-RULES Python 基本テンプレート",
+  "template.python-fastapi.title": "AI-RULES Python + FastAPI テンプレート",
+  "prompt.audit.system": "あなたは厳格な AI コーディングガバナンス監査者です。監査前に .ai-rules/rules-config.json、.ai-rules/config.json、.ai-rules/.ai-rules.md を順番に読み、enabledRuleIds、severityThreshold、detectOptions、thresholds、exceptions、pathAliases、ルール内容を解決してください。パスを判断する前に必ず alias を解決し、有効なルールだけを監査し、exceptions を尊重してください。",
+  "prompt.audit.user": "解決済みの AI-RULES 設定に基づいて対象コードを監査してください。regex/import/include ルールでは具体的なローカル証拠を優先し、ast/semantic ルールでは慎重に AI 判断を行ってください。要求された JSON report schema のみを返してください。",
+  "prompt.repair.system": "あなたはコード修復アシスタントです。解決済みの AI-RULES 設定、pathAliases、exceptions、ルールの intent/fix/prompt guidance、context assets に従い、実行可能な最小変更を出力してください。",
+  "prompt.repair.user": "違反ルール、レポート証拠、解決済みプロジェクトコンテキストに基づいて最小パッチ計画を生成してください。選択された issue と無関係な大規模リライトは避けてください。",
+  "prompt.setup.noSlashHint": "このツールが実際の slash command をサポートしていない場合は、再利用可能なプロンプトテンプレート、スニペット、またはクイックアクションとして保存してください。"
+}
