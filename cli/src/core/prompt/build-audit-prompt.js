@@ -26,6 +26,7 @@ function buildAuditPrompt({ config, rules, evidence, localeMap, reportSchemaText
     "",
     "Output requirements:",
     `Return strict JSON only with shape: ${reportSchemaText || "{}"}`,
+    "- Save the final JSON result as ai-rule-report.json in the project root after completing the audit.",
     "- Only report violations at or above the configured severity threshold.",
     "- Each issue must reference exactly one ruleId.",
     "- Use local evidence when available, but do not fabricate certainty if evidence is weak.",

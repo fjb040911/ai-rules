@@ -468,6 +468,7 @@ test("buildAuditPrompt includes config, rules, and evidence sections", () => {
   assert.match(prompt, /maxFunctionLines=80/);
   assert.match(prompt, /RULE-\*:1/);
   assert.match(prompt, /Return strict JSON only/);
+  assert.match(prompt, /Save the final JSON result as ai-rule-report\.json/);
 });
 
 test("normalizeReport standardizes legacy report shapes", () => {
