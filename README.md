@@ -465,5 +465,5 @@ npm test
 
 ## Docs
 
-- English design spec: [docs/design-spec-en.md](docs/design-spec-en.md)
-- 中文设计文档: [docs/design-spec-zh.md](docs/design-spec-zh.md)
+- English design spec: [design/design-spec-en.md](design/design-spec-en.md)
+- 中文设计文档: [design/design-spec-zh.md](design/design-spec-zh.md)

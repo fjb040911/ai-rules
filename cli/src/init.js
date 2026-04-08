@@ -245,7 +245,7 @@ function printSuccessBanner() {
     "  4. Get help anytime:",
     "     $ ai-law -h",
     "",
-    "📖 Docs: docs/design-spec-en.md | docs/design-spec-zh.md",
+    "📖 Docs: design/design-spec-en.md | design/design-spec-zh.md",
     "",
   ];
 
