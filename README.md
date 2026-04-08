@@ -230,6 +230,12 @@ Use the generated prompt with your AI tool, then save the AI result as `ai-rule-
 `--summary` prints enabled-rule counts, local-vs-AI coverage, suppressed files, and configured thresholds.
 `--dry-run` prints include/exclude patterns, rule IDs that can run locally, AI-only rule IDs, and active exception patterns.
 
+<p align="center">
+  <img src="assets/report.png" alt="Example AI-RULES audit report output" width="880">
+</p>
+
+Audit report example: the AI returns a structured `ai-rule-report.json` that can be validated and fed into the next repair step.
+
 ### 4. Validate The AI Report
 
 After your AI tool returns `ai-rule-report.json`, run:
@@ -269,6 +275,12 @@ ai-law fix --id ARCH-101
 ai-law fix --all
 ai-law fix --all --group-by-rule
 ```
+
+<p align="center">
+  <img src="assets/fix.png" alt="Example AI-RULES fix prompt output" width="880">
+</p>
+
+Fix prompt example: `ai-law fix` turns one or more report entries into a focused, patch-oriented repair prompt with rule context and evidence.
 
 ## Rule Model
 
