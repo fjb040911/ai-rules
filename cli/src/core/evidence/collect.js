@@ -3,6 +3,7 @@ const path = require("path");
 const { collectFiles } = require("./file-set");
 const { matchRegex } = require("./match-regex");
 const { matchImportLike } = require("./match-import");
+const { matchCount } = require("./match-count");
 const { matchesGlob } = require("./glob");
 
 async function collectEvidence({ cwd, config, rules }) {
@@ -33,6 +34,11 @@ async function collectEvidence({ cwd, config, rules }) {
         const content = await readFileCached(contentCache, cwd, file);
         matches.push(...matchImportLike({ rule, filePath: file, content }));
       }
+    } else if (rule.detect && rule.detect.count) {
+      for (const file of filteredFiles) {
+        const content = await readFileCached(contentCache, cwd, file);
+        matches.push(...matchCount({ rule, filePath: file, content, config }));
+      }
     }
 
     evidence.push(
@@ -62,6 +68,17 @@ function buildEvidenceRecord(rule, matches, meta) {
     return {
       ruleId: rule.id,
       mode: "local-import",
+      matches: matches.slice(0, 10),
+      totalMatches: matches.length,
+      exceptionPatterns: meta.exceptionPatterns,
+      suppressedFileCount: meta.suppressedFileCount,
+    };
+  }
+
+  if (rule.detect && rule.detect.count) {
+    return {
+      ruleId: rule.id,
+      mode: "local-count",
       matches: matches.slice(0, 10),
       totalMatches: matches.length,
       exceptionPatterns: meta.exceptionPatterns,

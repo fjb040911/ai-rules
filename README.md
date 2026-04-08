@@ -28,7 +28,8 @@ In short: repository governance tools protect the merge boundary; AI-RULES guide
 - Parses `.ai-rules/.ai-rules.md` and `rules-config.json`
 - Merges `extends` chains for rules and config
 - Collects lightweight local evidence for `regex` and `import/include` style rules
-- Supports config-level `thresholds` for future parameterized rule behavior
+- Collects lightweight local evidence for minimal `count` rules such as `function-lines` and `params-count`
+- Supports config-level `thresholds` for active parameterized rule behavior
 - Supports config-level `exceptions` to suppress known-safe files per rule pattern
 - Generates rule-aware audit prompts instead of static prompt text
 - Normalizes and validates `ai-rule-report.json`
@@ -61,6 +62,8 @@ Current templates already cover a first batch of high-priority engineering rules
 - Weak password hashing algorithms such as MD5/SHA1 are flagged
 - Logging patterns that may leak sensitive values are flagged
 - External HTTP calls should define explicit timeouts
+- Python functions should stay below configured line-count thresholds
+- Python function signatures should stay below configured parameter-count thresholds
 - FastAPI routes should not access repositories or DB sessions directly
 - SQL built through interpolation/concatenation in FastAPI code is flagged
 - FastAPI request logging must avoid tokens, cookies, auth headers, and raw credentials
@@ -90,6 +93,7 @@ Current templates already cover a first batch of high-priority engineering rules
 AI-RULES is not a full static analysis engine yet.
 
 - `regex` and `import/include` detection can collect local evidence
+- minimal `count` detection can collect local evidence for `function-lines` and `params-count`
 - `ast` and `semantic` rules are still AI-guided and treated as `ai-only`
 - The CLI helps structure context and outputs, while the AI still makes the final audit decision
 
@@ -203,12 +207,16 @@ Useful variants:
 ```bash
 ai-law audit --locale zh-CN
 ai-law audit --json
+ai-law audit --summary
+ai-law audit --dry-run
 ai-law audit --dump-context
 ```
 
 `--json` prints the structured audit context instead of a prompt.
 
 `--dump-context` writes `.ai-rules/cache/audit-context.json`.
+`--summary` prints enabled-rule counts, local-vs-AI coverage, suppressed files, and configured thresholds.
+`--dry-run` prints include/exclude patterns, rule IDs that can run locally, AI-only rule IDs, and active exception patterns.
 
 ### 4. Validate The AI Report
 
@@ -335,11 +343,11 @@ The current templates intentionally mix:
 
 ## Config Extensions
 
-The config model now supports two roadmap-oriented extensions:
+The config model now supports two rule-aware extensions:
 
 ### `thresholds`
 
-Used for configurable numeric limits that future rules can reference.
+Used for configurable numeric limits that active local count rules can reference.
 
 Example:
 
@@ -422,6 +430,7 @@ The audit prompt requests strict JSON with a normalized structure like:
 Current templates:
 
 - `frontend-base`
+  - `react-js`
   - `react-ts`
   - `vue`
 - `python-base`
@@ -436,7 +445,7 @@ Branch templates inherit from base templates through `extends`.
 
 ```bash
 ai-law init
-ai-law audit [--locale <code>] [--json] [--dump-context]
+ai-law audit [--locale <code>] [--json] [--summary] [--dry-run] [--dump-context]
 ai-law fix --issueId <issue_id>
 ai-law fix --id <rule_id>
 ai-law fix --all [--group-by-rule]

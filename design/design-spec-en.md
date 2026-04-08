@@ -113,6 +113,7 @@ The CLI generates a project-local rules directory:
 Templates are organized as base + branch:
 
 - `frontend-base`
+  - `react-js`
   - `react-ts`
   - `vue`
 - `python-base`

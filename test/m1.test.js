@@ -321,6 +321,55 @@ test("collectEvidence gathers regex and import candidates", async () => {
   assert.equal(evidence[2].mode, "ai-only");
 });
 
+test("collectEvidence gathers minimal count metrics", async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-rules-count-"));
+  await fs.mkdir(path.join(tempDir, "src"), { recursive: true });
+  await fs.writeFile(
+    path.join(tempDir, "src", "module.py"),
+    [
+      "def oversized(alpha, beta, gamma, delta, epsilon, zeta):",
+      "    first = alpha + beta",
+      "    second = gamma + delta",
+      "    third = epsilon + zeta",
+      "    fourth = first + second",
+      "    return third + fourth",
+      "",
+    ].join("\n"),
+    "utf8"
+  );
+
+  const evidence = await collectEvidence({
+    cwd: tempDir,
+    config: {
+      detectOptions: {
+        include: ["src/**/*.py"],
+        exclude: [],
+      },
+      thresholds: {
+        maxFunctionLines: 4,
+        maxParamsCount: 5,
+      },
+    },
+    rules: [
+      {
+        id: "COUNT-001",
+        detect: { count: "function-lines", thresholdKey: "maxFunctionLines" },
+      },
+      {
+        id: "COUNT-002",
+        detect: { count: "params-count", thresholdKey: "maxParamsCount" },
+      },
+    ],
+  });
+
+  assert.equal(evidence[0].mode, "local-count");
+  assert.equal(evidence[0].totalMatches, 1);
+  assert.match(evidence[0].matches[0].snippet, /function-lines=7/);
+  assert.equal(evidence[1].mode, "local-count");
+  assert.equal(evidence[1].totalMatches, 1);
+  assert.match(evidence[1].matches[0].snippet, /params-count=6/);
+});
+
 test("collectEvidence respects rule exceptions from config", async () => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-rules-exceptions-"));
   await fs.mkdir(path.join(tempDir, "src"), { recursive: true });
@@ -574,10 +623,115 @@ test("doctor warns when pathAliases point to missing paths", async () => {
   assert.match(stdout, /\.ai-rules\/config\.json/);
 });
 
+test("audit supports summary and dry-run output", async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-rules-audit-modes-"));
+  const aiRulesDir = path.join(tempDir, ".ai-rules");
+  await fs.mkdir(aiRulesDir, { recursive: true });
+  await fs.mkdir(path.join(tempDir, "src"), { recursive: true });
+  await fs.writeFile(
+    path.join(tempDir, "src", "module.py"),
+    [
+      "def oversized(alpha, beta, gamma, delta, epsilon, zeta):",
+      "    first = alpha + beta",
+      "    second = gamma + delta",
+      "    third = epsilon + zeta",
+      "    fourth = first + second",
+      "    return third + fourth",
+      "",
+      "def uses_secret(secret):",
+      "    return secret",
+      "",
+    ].join("\n"),
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(aiRulesDir, "rules-config.json"),
+    JSON.stringify({
+      rulesFile: ".ai-rules.md",
+      stack: "python-base",
+      enabledRuleIds: ["COUNT-001", "REGEX-001", "AI-001"],
+      scopes: ["code-safety", "security"],
+      thresholds: {
+        maxFunctionLines: 4,
+      },
+      exceptions: {
+        "REGEX-*": ["fixtures/**"],
+      },
+      detectOptions: {
+        include: ["src/**/*.py"],
+        exclude: ["dist/**"],
+      },
+    }),
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(aiRulesDir, ".ai-rules.md"),
+    [
+      "### RULE: COUNT-001",
+      "severity: WARN",
+      "scope: code-safety",
+      "intent: Keep functions small",
+      "detect:",
+      "  count: function-lines",
+      "  thresholdKey: maxFunctionLines",
+      "  where: filePath in src/**/*.py",
+      "fix: Split the function",
+      "prompt:",
+      "  violation: Function too large",
+      "  requirement: Functions must remain small",
+      "  solution: Extract helpers",
+      "",
+      "### RULE: REGEX-001",
+      "severity: WARN",
+      "scope: security",
+      "intent: Avoid direct secret flow",
+      "detect:",
+      "  regex: \"secret\"",
+      "  where: filePath in src/**/*.py",
+      "fix: Remove direct secret usage",
+      "prompt:",
+      "  violation: Secret pattern found",
+      "  requirement: Secrets must not flow directly",
+      "  solution: Refactor sensitive handling",
+      "",
+      "### RULE: AI-001",
+      "severity: WARN",
+      "scope: security",
+      "intent: Needs semantic review",
+      "detect:",
+      "  semantic: complicated pattern",
+      "fix: Review carefully",
+      "prompt:",
+      "  violation: Semantic concern",
+      "  requirement: Keep the boundary safe",
+      "  solution: Use a safer pattern",
+      "",
+    ].join("\n"),
+    "utf8"
+  );
+
+  const cliPath = path.join(__dirname, "..", "cli", "src", "index.js");
+  const summary = await execFileAsync(process.execPath, [cliPath, "audit", "--summary"], { cwd: tempDir });
+  const dryRun = await execFileAsync(process.execPath, [cliPath, "audit", "--dry-run"], { cwd: tempDir });
+
+  assert.match(summary.stdout, /AI-RULES AUDIT SUMMARY/);
+  assert.match(summary.stdout, /enabled rule count: 3/);
+  assert.match(summary.stdout, /local-evidence rule count: 2/);
+  assert.match(summary.stdout, /ai-only rule count: 1/);
+  assert.match(summary.stdout, /maxFunctionLines=4/);
+
+  assert.match(dryRun.stdout, /AI-RULES AUDIT DRY RUN/);
+  assert.match(dryRun.stdout, /include patterns: src\/\*\*\/\*\.py/);
+  assert.match(dryRun.stdout, /local rules: COUNT-001, REGEX-001/);
+  assert.match(dryRun.stdout, /ai-only rules: AI-001/);
+  assert.match(dryRun.stdout, /REGEX-\*: fixtures\/\*\*/);
+});
+
 
 test("current expanded templates parse and validate", async () => {
   const templateConfigs = [
     path.join(__dirname, "..", "templates", "frontend-base", "rules-config.json"),
+    path.join(__dirname, "..", "templates", "frontend-base", "react-js", "rules-config.json"),
     path.join(__dirname, "..", "templates", "frontend-base", "react-ts", "rules-config.json"),
     path.join(__dirname, "..", "templates", "frontend-base", "vue", "rules-config.json"),
     path.join(__dirname, "..", "templates", "python-base", "rules-config.json"),

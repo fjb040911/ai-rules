@@ -1,6 +1,6 @@
 {
   "version": "0.1.0",
-  "stack": "vue-ts",
+  "stack": "vue",
   "extends": "../rules-config.json",
   "rulesFile": ".ai-rules.md",
   "i18n": {
@@ -28,7 +28,7 @@
   ],
   "detectOptions": {
     "include": [
-      "src/**/*.{ts,tsx,vue}"
+      "src/**/*.{js,jsx,ts,tsx,vue}"
     ]
   },
   "prompt": {

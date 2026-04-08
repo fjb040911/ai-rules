@@ -7,7 +7,7 @@
     "@views": "src/views",
     "@ui": "src/components/ui",
     "@services": "src/services",
-    "@apiClient": "src/api/client.ts",
+    "@apiClient": "src/api/client.{ts,tsx,js,jsx}",
     "@data": "src/data",
     "@composables": "src/composables",
     "@utils": "src/utils",

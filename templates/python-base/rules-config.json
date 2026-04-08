@@ -18,8 +18,10 @@
   "enabledRuleIds": [
     "PYBASE-CODE-101",
     "PYBASE-CODE-102",
+    "PYBASE-CODE-103",
     "PYBASE-TYPE-201",
     "PYBASE-TYPE-202",
+    "PYBASE-TYPE-203",
     "PYBASE-SEC-301",
     "PYBASE-SEC-302",
     "PYBASE-SEC-303",
@@ -29,6 +31,10 @@
     "PYBASE-ERR-601",
     "PYBASE-IO-602"
   ],
+  "thresholds": {
+    "maxFunctionLines": 60,
+    "maxParamsCount": 5
+  },
   "severityThreshold": "WARN",
   "scopes": [
     "code-safety",

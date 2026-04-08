@@ -26,7 +26,6 @@
     "FE-SEC-103",
     "FE-SEC-104",
     "FE-SEC-105",
-    "TS-401",
     "STYLE-501",
     "STYLE-502"
   ],
@@ -36,7 +35,6 @@
     "security",
     "service",
     "module",
-    "typescript",
     "style"
   ],
   "detectOptions": {

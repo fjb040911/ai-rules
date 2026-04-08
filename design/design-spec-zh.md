@@ -113,6 +113,7 @@ CLI 会在项目根目录创建：
 模板采用 base + branch 结构：
 
 - `frontend-base`
+  - `react-js`
   - `react-ts`
   - `vue`
 - `python-base`

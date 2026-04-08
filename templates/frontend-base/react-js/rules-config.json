@@ -1,23 +1,22 @@
 {
   "version": "0.1.0",
-  "stack": "react-ts",
+  "stack": "react-js",
   "extends": "../rules-config.json",
   "rulesFile": ".ai-rules.md",
   "i18n": {
     "defaultLocale": "zh-CN",
     "supportedLocales": [
-    "zh-CN",
-    "en",
-    "zh-TW",
-    "ja",
-    "ko",
-    "es",
-    "fr"
+      "zh-CN",
+      "en",
+      "zh-TW",
+      "ja",
+      "ko",
+      "es",
+      "fr"
     ],
     "localeDir": "../../i18n"
   },
   "enabledRuleIds": [
-    "TS-401",
     "REACT-301",
     "REACT-302",
     "REACT-303",
@@ -25,13 +24,12 @@
   ],
   "severityThreshold": "WARN",
   "scopes": [
-    "typescript",
     "react",
     "ui"
   ],
   "detectOptions": {
     "include": [
-      "src/**/*.{ts,tsx}"
+      "src/**/*.{js,jsx}"
     ],
     "exclude": [
       "**/*.test.*",

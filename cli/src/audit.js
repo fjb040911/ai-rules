@@ -16,6 +16,8 @@ async function runAudit(argv) {
   const localeMap = await readLocaleMap(locale);
   const outputJson = argv.includes("--json");
   const dumpContext = argv.includes("--dump-context");
+  const outputSummary = argv.includes("--summary");
+  const outputDryRun = argv.includes("--dry-run");
   const context = await buildAuditContext({ cwd: process.cwd(), localeMap });
 
   if (context.findings.some((item) => item.level === "error")) {
@@ -32,6 +34,16 @@ async function runAudit(argv) {
 
   if (outputJson) {
     process.stdout.write(JSON.stringify(context, null, 2) + "\n");
+    return;
+  }
+
+  if (outputSummary) {
+    process.stdout.write(formatSummary(context.summary) + "\n");
+    return;
+  }
+
+  if (outputDryRun) {
+    process.stdout.write(formatDryRun(context.dryRun) + "\n");
     return;
   }
 
@@ -87,15 +99,19 @@ async function buildAuditContext({ cwd, localeMap }) {
     ...validateRules({ rules, config }),
   ];
   const evidence = await collectEvidence({ cwd, config, rules });
+  const summary = buildAuditSummary({ config, rules, evidence });
+  const dryRun = buildDryRun({ config, rules, evidence });
 
   return {
-    version: "0.3",
+    version: readCliVersion(),
     generatedAt: new Date().toISOString(),
     locale: inferLocale(config, localeMap),
     config,
     rules,
     evidence,
     findings,
+    summary,
+    dryRun,
   };
 }
 
@@ -122,6 +138,101 @@ function inferLocale(config) {
   return (config.i18n && config.i18n.defaultLocale) || "en";
 }
 
+function buildAuditSummary({ config, rules, evidence }) {
+  const enabledRules = new Set(config.enabledRuleIds || []);
+  const activeRules = rules.filter((rule) => enabledRules.has(rule.id));
+  const relevantEvidence = evidence.filter((item) => enabledRules.has(item.ruleId));
+  const localEvidenceItems = relevantEvidence.filter((item) => item.mode !== "ai-only");
+
+  return {
+    stack: config.stack || "unknown",
+    enabledRuleCount: activeRules.length,
+    localEvidenceRuleCount: localEvidenceItems.length,
+    aiOnlyRuleCount: relevantEvidence.filter((item) => item.mode === "ai-only").length,
+    totalLocalEvidenceMatches: localEvidenceItems.reduce((sum, item) => sum + (item.totalMatches || 0), 0),
+    suppressedFileCount: relevantEvidence.reduce((sum, item) => sum + (item.suppressedFileCount || 0), 0),
+    thresholds: config.thresholds || {},
+  };
+}
+
+function buildDryRun({ config, rules, evidence }) {
+  const enabledRules = new Set(config.enabledRuleIds || []);
+  const activeRules = rules.filter((rule) => enabledRules.has(rule.id));
+  const evidenceByRule = new Map(evidence.map((item) => [item.ruleId, item]));
+
+  return {
+    stack: config.stack || "unknown",
+    includePatterns: (config.detectOptions && config.detectOptions.include) || [],
+    excludePatterns: (config.detectOptions && config.detectOptions.exclude) || [],
+    localRuleIds: activeRules
+      .filter((rule) => {
+        const item = evidenceByRule.get(rule.id);
+        return item && item.mode !== "ai-only";
+      })
+      .map((rule) => rule.id),
+    aiOnlyRuleIds: activeRules
+      .filter((rule) => {
+        const item = evidenceByRule.get(rule.id);
+        return !item || item.mode === "ai-only";
+      })
+      .map((rule) => rule.id),
+    exceptionPatterns: Object.entries(config.exceptions || {}).map(
+      ([rulePattern, patterns]) => `${rulePattern}: ${patterns.join(", ")}`
+    ),
+  };
+}
+
+function formatSummary(summary) {
+  return [
+    "AI-RULES AUDIT SUMMARY",
+    `- stack: ${summary.stack}`,
+    `- enabled rule count: ${summary.enabledRuleCount}`,
+    `- local-evidence rule count: ${summary.localEvidenceRuleCount}`,
+    `- ai-only rule count: ${summary.aiOnlyRuleCount}`,
+    `- total local evidence matches: ${summary.totalLocalEvidenceMatches}`,
+    `- suppressed file count: ${summary.suppressedFileCount}`,
+    `- configured thresholds: ${formatKeyValueMap(summary.thresholds)}`,
+  ].join("\n");
+}
+
+function formatDryRun(dryRun) {
+  return [
+    "AI-RULES AUDIT DRY RUN",
+    `- stack: ${dryRun.stack}`,
+    `- include patterns: ${formatList(dryRun.includePatterns)}`,
+    `- exclude patterns: ${formatList(dryRun.excludePatterns)}`,
+    `- local rules: ${formatList(dryRun.localRuleIds)}`,
+    `- ai-only rules: ${formatList(dryRun.aiOnlyRuleIds)}`,
+    `- exception patterns: ${formatList(dryRun.exceptionPatterns)}`,
+  ].join("\n");
+}
+
+function formatList(items) {
+  if (!items || items.length === 0) {
+    return "(none)";
+  }
+  return items.join(", ");
+}
+
+function formatKeyValueMap(value) {
+  if (!value || Object.keys(value).length === 0) {
+    return "(none)";
+  }
+  return Object.entries(value)
+    .map(([key, item]) => `${key}=${item}`)
+    .join(", ");
+}
+
+function readCliVersion() {
+  try {
+    const packagePath = path.join(__dirname, "..", "..", "package.json");
+    const pkg = require(packagePath);
+    return pkg && pkg.version ? String(pkg.version) : "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
 async function fileExists(targetPath) {
   try {
     await fs.access(targetPath);
@@ -131,4 +242,4 @@ async function fileExists(targetPath) {
   }
 }
 
-module.exports = { runAudit };
+module.exports = { runAudit, buildAuditContext };
