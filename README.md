@@ -142,19 +142,23 @@ ai-law doctor
 # 3. Generate a rule-aware audit prompt
 ai-law audit
 
-# 4. Or inspect the structured audit context directly
+# 4. `audit` also writes local helper files by default
+#    - .ai-rules/cache/audit-context.json
+#    - .ai-rules/cache/ai-rule-report.template.json
+
+# 5. Or inspect the structured audit context directly
 ai-law audit --json
 
-# 5. Save audit context for debugging/integration
+# 6. Optionally force a fresh context dump
 ai-law audit --dump-context
 
-# 6. After your AI tool produces ai-rule-report.json, validate it
+# 7. After your AI tool produces ai-rule-report.json, validate it
 ai-law validate-report
 
-# 7. Generate a fix prompt for one issue
+# 8. Generate a fix prompt for one issue
 ai-law fix --issueId ISSUE-001
 
-# 8. Or generate a grouped fix prompt for the whole report
+# 9. Or generate a grouped fix prompt for the whole report
 ai-law fix --all --group-by-rule
 ```
 
@@ -176,7 +180,8 @@ Example layout:
 │   ├── rules-config.json
 │   └── config.json
 └── cache/
-    └── audit-context.json
+    ├── audit-context.json
+    └── ai-rule-report.template.json
 ```
 
 ### 2. Validate Local Rule Setup
@@ -214,7 +219,14 @@ ai-law audit --dump-context
 
 `--json` prints the structured audit context instead of a prompt.
 
-`--dump-context` writes `.ai-rules/cache/audit-context.json`.
+By default, `ai-law audit` writes:
+
+- `.ai-rules/cache/audit-context.json`
+- `.ai-rules/cache/ai-rule-report.template.json`
+
+Use the generated prompt with your AI tool, then save the AI result as `ai-rule-report.json` in the project root.
+
+`--dump-context` forces a fresh write of `.ai-rules/cache/audit-context.json`.
 `--summary` prints enabled-rule counts, local-vs-AI coverage, suppressed files, and configured thresholds.
 `--dry-run` prints include/exclude patterns, rule IDs that can run locally, AI-only rule IDs, and active exception patterns.
 

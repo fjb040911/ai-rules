@@ -725,6 +725,33 @@ test("audit supports summary and dry-run output", async () => {
   assert.match(dryRun.stdout, /local rules: COUNT-001, REGEX-001/);
   assert.match(dryRun.stdout, /ai-only rules: AI-001/);
   assert.match(dryRun.stdout, /REGEX-\*: fixtures\/\*\*/);
+
+  const contextPath = path.join(aiRulesDir, "cache", "audit-context.json");
+  const templatePath = path.join(aiRulesDir, "cache", "ai-rule-report.template.json");
+  const contextExists = await fs.readFile(contextPath, "utf8");
+  const templateExists = JSON.parse(await fs.readFile(templatePath, "utf8"));
+
+  assert.match(summary.stderr || "", /audit-context\.json/);
+  assert.match(summary.stderr || "", /ai-rule-report\.template\.json/);
+  assert.ok(contextExists.includes("\"stack\": \"python-base\""));
+  assert.deepEqual(templateExists.violations, []);
+});
+
+test("fix explains how to create ai-rule-report.json when missing", async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-rules-fix-missing-report-"));
+  await fs.mkdir(path.join(tempDir, ".ai-rules"), { recursive: true });
+
+  const cliPath = path.join(__dirname, "..", "cli", "src", "index.js");
+  await assert.rejects(
+    () => execFileAsync(process.execPath, [cliPath, "fix", "--issueId", "ISSUE-001"], { cwd: tempDir }),
+    (err) => {
+      const output = `${err.stdout || ""}${err.stderr || ""}`;
+      assert.match(output, /ai-rule-report\.json not found/);
+      assert.match(output, /save your AI audit result as ai-rule-report\.json/i);
+      assert.match(output, /ai-rule-report\.template\.json/);
+      return true;
+    }
+  );
 });
 
 

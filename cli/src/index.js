@@ -96,7 +96,7 @@ function getHelpText() {
     "      --json                Print audit context JSON instead of prompt",
     "      --summary             Print audit coverage summary",
     "      --dry-run             Print audit plan without generating the prompt",
-    "      --dump-context        Write .ai-rules/cache/audit-context.json",
+    "      --dump-context        Explicitly rewrite .ai-rules/cache/audit-context.json",
     "  -p, --provider <name>     Setup provider: copilot|codex|cursor|claude-code|custom",
     "      --write               Write slash command files (OpenSpec-style managed update)",
     "      --strict              Treat warnings as failures in doctor",

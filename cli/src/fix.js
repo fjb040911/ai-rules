@@ -24,7 +24,10 @@ async function runFix(argv) {
   const reportPath = path.join(cwd, "ai-rule-report.json");
   const exists = await fileExists(reportPath);
   if (!exists) {
-    process.stderr.write("ai-rule-report.json not found. Run: ai-law audit\n");
+    process.stderr.write("ai-rule-report.json not found.\n");
+    process.stderr.write("Run: ai-law audit\n");
+    process.stderr.write("Then save your AI audit result as ai-rule-report.json in the project root.\n");
+    process.stderr.write("A starter template is available at: .ai-rules/cache/ai-rule-report.template.json\n");
     process.exitCode = 1;
     return;
   }

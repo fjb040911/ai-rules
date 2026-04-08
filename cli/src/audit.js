@@ -9,7 +9,7 @@ const { resolveRulePaths } = require("./core/rules/resolve-rules");
 const { validateRules } = require("./core/rules/validate-rules");
 const { collectEvidence } = require("./core/evidence/collect");
 const { buildAuditPrompt } = require("./core/prompt/build-audit-prompt");
-const { getReportSchemaText } = require("./core/report/schema");
+const { getReportSchemaText, buildReportTemplate } = require("./core/report/schema");
 
 async function runAudit(argv) {
   const locale = parseLocaleArg(argv) || (await readDefaultLocale()) || "en";
@@ -28,9 +28,7 @@ async function runAudit(argv) {
 
   printFindings(context.findings.filter((item) => item.level === "warn"));
 
-  if (dumpContext) {
-    await writeAuditContext(process.cwd(), context);
-  }
+  await writeAuditArtifacts(process.cwd(), context, { forceContextWrite: dumpContext });
 
   if (outputJson) {
     process.stdout.write(JSON.stringify(context, null, 2) + "\n");
@@ -130,6 +128,31 @@ async function writeAuditContext(cwd, context) {
   await fs.writeFile(
     path.join(cacheDir, "audit-context.json"),
     JSON.stringify(context, null, 2) + "\n",
+    "utf8"
+  );
+}
+
+async function writeAuditArtifacts(cwd, context, { forceContextWrite }) {
+  await writeAuditContext(cwd, context);
+  await writeReportTemplate(cwd, context);
+
+  if (!forceContextWrite) {
+    process.stderr.write(
+      "Wrote .ai-rules/cache/audit-context.json and .ai-rules/cache/ai-rule-report.template.json\n"
+    );
+    process.stderr.write(
+      "After your AI returns the audit result, save it as ai-rule-report.json and run: ai-law validate-report\n"
+    );
+  }
+}
+
+async function writeReportTemplate(cwd, context) {
+  const cacheDir = path.join(cwd, ".ai-rules", "cache");
+  await fs.mkdir(cacheDir, { recursive: true });
+  const template = buildReportTemplate({ stack: context.config && context.config.stack });
+  await fs.writeFile(
+    path.join(cacheDir, "ai-rule-report.template.json"),
+    JSON.stringify(template, null, 2) + "\n",
     "utf8"
   );
 }
