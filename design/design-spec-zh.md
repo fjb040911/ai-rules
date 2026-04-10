@@ -36,6 +36,20 @@ AI-RULES 解决的是更前置的问题：在代码进入 Review、CI 或合并�
 - 由 CLI 直接自动改代码
 - 替代高风险变更中的人工审查
 
+## 职责边界
+
+当后续引入 AST 能力时，AI-RULES 需要明确区分“代码解析”与“规则编排”的边界。
+
+- 成熟的 JS/TS parser 工具库负责源代码解析、AST 遍历以及结构化候选节点定位。
+- AI-RULES 负责：
+  - 读取规则与配置元数据
+  - 决定哪些规则走 AST-backed evidence
+  - 将 parser 结果归一化为统一 evidence 结构
+  - 将 AST evidence 与 regex/import/count evidence 合并
+  - 将标准化 evidence 喂给 audit Prompt、validated report 和 fix Prompt
+
+也就是说，AI-RULES 的目标不是做一个通用 AST 平台，而是把 parser 提供的结构化分析能力，通过 rule-aware CLI 暴露给 AI 审计与修复工作流。
+
 ## 高层工作流
 
 ### 1. 初始化
@@ -66,6 +80,10 @@ AI-RULES 解决的是更前置的问题：在代码进入 Review、CI 或合并�
 - 做本地规则/配置一致性校验
 - 收集轻量本地证据
 - 组装 rule-aware 的 audit Prompt
+
+对于未来的 AST-backed 规则，也沿用同样模式：parser 工具输出结构化候选，再由 AI-RULES 统一归一化为 evidence record，并注入 audit Prompt。
+
+当存在 AST 配置时，`audit` 也应把解析后的 backend 摘要输出出来，让用户和 AI 都知道本次结构化证据依赖的是哪种 parser/provider 假设。
 
 可选输出：
 
@@ -190,6 +208,7 @@ context:
 - `enabledRuleIds`
 - `severityThreshold`
 - `scopes`
+- `ast`
 - `pathAliases`
 - `thresholds`
 - `exceptions`
@@ -205,6 +224,38 @@ CLI 会递归处理 `extends`，然后在存在本地 `config.json` 时将其合
 - 标量字段：子配置覆盖父配置
 - 数组字段：去重合并
 - map/object：浅合并，子配置优先
+
+### AST 配置模型
+
+AST 相关配置应放在 AI-RULES 自己的高层配置层中，而不是把外部 parser 工具的原生配置全文复制进来。
+
+建议结构：
+
+```json
+{
+  "ast": {
+    "provider": "babel",
+    "target": "react",
+    "useProjectConfig": true,
+    "parserOptions": {
+      "sourceType": "module",
+      "plugins": ["jsx", "typescript"]
+    }
+  }
+}
+```
+
+运行时的合并与解析顺序建议为：
+
+1. CLI 根据所选模板/项目类型给出的默认 AST 配置
+2. 从项目中探测到的配置，例如 `tsconfig.json`、`.babelrc`、`babel.config.json`、`package.json#babel`
+3. `.ai-rules/config.json` 中显式声明的 AST 覆盖项
+
+这样可以保持边界清晰：
+
+- parser 工具自己的配置仍然负责底层语法/解析细节
+- AI-RULES 只保留自己真正需要的高层编排配置
+- 运行时会生成最终的 `resolvedAstConfig`，供 audit/evidence 收集使用
 
 本地目录覆盖示例：
 
@@ -238,13 +289,14 @@ CLI 会在收集 evidence 和生成 Prompt 之前解析这些别名。
 - `detect.regex`
 - `detect.import`
 - `detect.include`
+- 前端 JS/TS 场景下的首批 `detect.ast` 规则
 
 ### 当前仍交给 AI 判断
 
-- `detect.ast`
 - `detect.semantic`
+- 尚未进入首批支持列表的 `detect.ast` 规则
 
-这意味着部分规则可以附带明确的文件/行号/snippet 候选证据，而更复杂的结构化判断仍交由 AI 处理。
+当前 AST-backed local evidence 只覆盖前端 JS/TS 的第一批规则，例如原始 HTML 注入、`eval/Function`、React index key、TypeScript `any`。其他 AST 规则仍然回退为 AI-guided judgment。
 
 ## 系统分层
 

@@ -39,6 +39,7 @@ function mergeConfigs(parent, child) {
     ...parent,
     ...child,
     i18n: mergeObjects(parent.i18n, child.i18n),
+    ast: mergeAstConfig(parent.ast, child.ast),
     pathAliases: mergeObjects(parent.pathAliases, child.pathAliases),
     thresholds: mergeObjects(parent.thresholds, child.thresholds),
     exceptions: mergeStringArrayMap(parent.exceptions, child.exceptions),
@@ -62,6 +63,21 @@ function mergePrompt(parent, child) {
     ...child,
     promptTemplates: mergeObjects(parent && parent.promptTemplates, child && child.promptTemplates),
     promptTemplateKeys: mergeObjects(parent && parent.promptTemplateKeys, child && child.promptTemplateKeys),
+  };
+}
+
+function mergeAstConfig(parent, child) {
+  return {
+    ...(parent || {}),
+    ...(child || {}),
+    parserOptions: {
+      ...((parent && parent.parserOptions) || {}),
+      ...((child && child.parserOptions) || {}),
+      plugins: mergeArrays(
+        parent && parent.parserOptions && parent.parserOptions.plugins,
+        child && child.parserOptions && child.parserOptions.plugins
+      ),
+    },
   };
 }
 

@@ -4,6 +4,7 @@ const { collectFiles } = require("./file-set");
 const { matchRegex } = require("./match-regex");
 const { matchImportLike } = require("./match-import");
 const { matchCount } = require("./match-count");
+const { matchAst } = require("./match-ast");
 const { matchesGlob } = require("./glob");
 
 async function collectEvidence({ cwd, config, rules }) {
@@ -39,6 +40,33 @@ async function collectEvidence({ cwd, config, rules }) {
         const content = await readFileCached(contentCache, cwd, file);
         matches.push(...matchCount({ rule, filePath: file, content, config }));
       }
+    } else if (rule.detect && rule.detect.ast) {
+      let astNote = null;
+      let astSupported = false;
+      for (const file of filteredFiles) {
+        const content = await readFileCached(contentCache, cwd, file);
+        const result = await matchAst({
+          rule,
+          filePath: file,
+          content,
+          astConfig: config.resolvedAstConfig,
+        });
+        astSupported = astSupported || result.supported;
+        if (!astNote && result.note) {
+          astNote = result.note;
+        }
+        matches.push(...result.matches);
+      }
+
+      evidence.push(
+        buildEvidenceRecord(rule, matches, {
+          exceptionPatterns,
+          suppressedFileCount: sourceFiles.length - filteredFiles.length,
+          astSupported,
+          astNote,
+        })
+      );
+      continue;
     }
 
     evidence.push(
@@ -81,6 +109,29 @@ function buildEvidenceRecord(rule, matches, meta) {
       mode: "local-count",
       matches: matches.slice(0, 10),
       totalMatches: matches.length,
+      exceptionPatterns: meta.exceptionPatterns,
+      suppressedFileCount: meta.suppressedFileCount,
+    };
+  }
+
+  if (rule.detect && rule.detect.ast) {
+    if (meta.astSupported) {
+      return {
+        ruleId: rule.id,
+        mode: "local-ast",
+        matches: matches.slice(0, 10),
+        totalMatches: matches.length,
+        exceptionPatterns: meta.exceptionPatterns,
+        suppressedFileCount: meta.suppressedFileCount,
+      };
+    }
+
+    return {
+      ruleId: rule.id,
+      mode: "ai-only",
+      matches: [],
+      totalMatches: 0,
+      note: meta.astNote || "This AST rule requires AI judgment.",
       exceptionPatterns: meta.exceptionPatterns,
       suppressedFileCount: meta.suppressedFileCount,
     };

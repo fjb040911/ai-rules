@@ -7,7 +7,12 @@ const { execFile } = require("child_process");
 const { promisify } = require("util");
 
 const { loadConfig } = require("../cli/src/core/config/load-config");
-const { validatePathAliases, pathAliasProbePath } = require("../cli/src/core/config/validate-config");
+const {
+  validatePathAliases,
+  pathAliasProbePath,
+  validateAstConfig,
+} = require("../cli/src/core/config/validate-config");
+const { resolveAstConfig } = require("../cli/src/core/config/resolve-ast-config");
 const { parseRules } = require("../cli/src/core/rules/parse-rules");
 const { resolveRulePaths } = require("../cli/src/core/rules/resolve-rules");
 const { validateRules } = require("../cli/src/core/rules/validate-rules");
@@ -100,6 +105,12 @@ test("loadConfig merges optional sidecar config.json", async () => {
   await fs.writeFile(
     sidecarPath,
     JSON.stringify({
+      ast: {
+        provider: "babel",
+        parserOptions: {
+          plugins: ["jsx", "typescript"],
+        },
+      },
       pathAliases: {
         "@service": "app/services",
         "@controller": "app/controllers",
@@ -120,6 +131,79 @@ test("loadConfig merges optional sidecar config.json", async () => {
   assert.deepEqual(config.thresholds, {
     maxFunctionLines: 80,
   });
+  assert.deepEqual(config.ast, {
+    provider: "babel",
+    parserOptions: {
+      plugins: ["jsx", "typescript"],
+    },
+  });
+});
+
+test("validateAstConfig rejects invalid ast config shapes", () => {
+  const findings = validateAstConfig({
+    provider: ["babel"],
+    useProjectConfig: "yes",
+    parserOptions: {
+      plugins: "jsx",
+    },
+  });
+
+  assert.ok(findings.some((item) => item.message.includes("ast.provider")));
+  assert.ok(findings.some((item) => item.message.includes("ast.useProjectConfig")));
+  assert.ok(findings.some((item) => item.message.includes("ast.parserOptions.plugins")));
+});
+
+test("resolveAstConfig merges defaults, detected project config, and local overrides", async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-rules-ast-config-"));
+  await fs.writeFile(
+    path.join(tempDir, "tsconfig.json"),
+    JSON.stringify({
+      compilerOptions: {
+        jsx: "react-jsx",
+        allowJs: true,
+        experimentalDecorators: true,
+      },
+    }),
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(tempDir, "package.json"),
+    JSON.stringify({
+      dependencies: {
+        react: "^18.0.0",
+      },
+      devDependencies: {
+        typescript: "^5.0.0",
+      },
+      babel: {
+        presets: ["@babel/preset-react", "@babel/preset-typescript"],
+      },
+    }),
+    "utf8"
+  );
+
+  const resolved = await resolveAstConfig({
+    cwd: tempDir,
+    config: {
+      stack: "react-js",
+      ast: {
+        parserOptions: {
+          sourceType: "script",
+        },
+      },
+    },
+  });
+
+  assert.equal(resolved.provider, "babel");
+  assert.equal(resolved.target, "react");
+  assert.equal(resolved.parserOptions.sourceType, "script");
+  assert.ok(resolved.parserOptions.plugins.includes("jsx"));
+  assert.ok(resolved.parserOptions.plugins.includes("typescript"));
+  assert.ok(resolved.parserOptions.plugins.includes("decorators-legacy"));
+  assert.ok(resolved.sources.includes("defaults"));
+  assert.ok(resolved.sources.includes("tsconfig.json"));
+  assert.ok(resolved.sources.includes("package.json#babel"));
+  assert.ok(resolved.sources.includes("ai-rules-config"));
 });
 
 test("validatePathAliases warns when configured paths do not exist", async () => {
@@ -370,6 +454,137 @@ test("collectEvidence gathers minimal count metrics", async () => {
   assert.match(evidence[1].matches[0].snippet, /params-count=6/);
 });
 
+test("collectEvidence gathers frontend AST candidates", async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-rules-ast-evidence-"));
+  await fs.mkdir(path.join(tempDir, "src"), { recursive: true });
+  await fs.writeFile(
+    path.join(tempDir, "src", "widget.tsx"),
+    [
+      "type Item = any;",
+      "export function Widget({ items }) {",
+      "  const html = '<b>x</b>';",
+      "  return (",
+      "    <div>",
+      "      <section dangerouslySetInnerHTML={{ __html: html }} />",
+      "      {items.map((item, index) => <span key={index}>{item.name}</span>)}",
+      "    </div>",
+      "  );",
+      "}",
+      "eval('console.log(1)');",
+      "",
+    ].join("\n"),
+    "utf8"
+  );
+
+  const evidence = await collectEvidence({
+    cwd: tempDir,
+    config: {
+      detectOptions: {
+        include: ["src/**/*.{ts,tsx}"],
+        exclude: [],
+      },
+      resolvedAstConfig: {
+        provider: "babel",
+        target: "react",
+        parserOptions: {
+          sourceType: "module",
+          plugins: ["jsx", "typescript"],
+        },
+      },
+    },
+    rules: [
+      {
+        id: "FE-SEC-101",
+        detect: { ast: "frontend/no-raw-html-injection", where: "filePath in src/**/*.tsx" },
+      },
+      {
+        id: "FE-SEC-102",
+        detect: { ast: "frontend/no-dynamic-code-exec", where: "filePath in src/**/*.tsx" },
+      },
+      {
+        id: "REACT-303",
+        detect: { ast: "react/no-index-key", where: "filePath in src/**/*.tsx" },
+      },
+      {
+        id: "TS-401",
+        detect: { ast: "typescript/no-any", where: "filePath in src/**/*.tsx" },
+      },
+      {
+        id: "AST-UNSUPPORTED",
+        detect: { ast: "CallExpression[callee.name=/fetch/]" },
+      },
+    ],
+  });
+
+  assert.equal(evidence[0].mode, "local-ast");
+  assert.equal(evidence[0].totalMatches, 1);
+  assert.match(evidence[0].matches[0].snippet, /dangerouslySetInnerHTML/);
+
+  assert.equal(evidence[1].mode, "local-ast");
+  assert.equal(evidence[1].totalMatches, 1);
+  assert.match(evidence[1].matches[0].snippet, /eval/);
+
+  assert.equal(evidence[2].mode, "local-ast");
+  assert.equal(evidence[2].totalMatches, 1);
+  assert.match(evidence[2].matches[0].snippet, /key=\{index\}/);
+
+  assert.equal(evidence[3].mode, "local-ast");
+  assert.equal(evidence[3].totalMatches, 1);
+  assert.match(evidence[3].matches[0].snippet, /type Item = any/);
+
+  assert.equal(evidence[4].mode, "ai-only");
+  assert.match(evidence[4].note, /not supported/);
+});
+
+test("collectEvidence keeps non-frontend ast rules AI-only without crashing", async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-rules-ast-non-frontend-"));
+  await fs.mkdir(path.join(tempDir, "src"), { recursive: true });
+  await fs.writeFile(
+    path.join(tempDir, "src", "service.py"),
+    [
+      "def typed(value):",
+      "    return value",
+      "",
+    ].join("\n"),
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(tempDir, "src", "Service.java"),
+    [
+      "class Service {",
+      "  Object value;",
+      "}",
+      "",
+    ].join("\n"),
+    "utf8"
+  );
+
+  const evidence = await collectEvidence({
+    cwd: tempDir,
+    config: {
+      detectOptions: {
+        include: ["src/**/*.{py,java}"],
+        exclude: [],
+      },
+    },
+    rules: [
+      {
+        id: "PY-AST-001",
+        detect: { ast: "typescript/no-any", where: "filePath in src/**/*.py" },
+      },
+      {
+        id: "JAVA-AST-001",
+        detect: { ast: "frontend/no-dynamic-code-exec", where: "filePath in src/**/*.java" },
+      },
+    ],
+  });
+
+  assert.equal(evidence[0].mode, "ai-only");
+  assert.match(evidence[0].note, /No local AST backend is configured|frontend JS\/TS\/Vue files/);
+  assert.equal(evidence[1].mode, "ai-only");
+  assert.match(evidence[1].note, /No local AST backend is configured|frontend JS\/TS\/Vue files/);
+});
+
 test("collectEvidence respects rule exceptions from config", async () => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-rules-exceptions-"));
   await fs.mkdir(path.join(tempDir, "src"), { recursive: true });
@@ -469,6 +684,7 @@ test("buildAuditPrompt includes config, rules, and evidence sections", () => {
   assert.match(prompt, /RULE-\*:1/);
   assert.match(prompt, /Return strict JSON only/);
   assert.match(prompt, /Save the final JSON result as ai-rule-report\.json/);
+  assert.match(prompt, /AST-backed local evidence/);
 });
 
 test("normalizeReport standardizes legacy report shapes", () => {
@@ -498,6 +714,28 @@ test("normalizeReport standardizes legacy report shapes", () => {
   assert.equal(normalized.report.violations[0].repairPrompt, "Patch here");
   assert.equal(normalized.report.violations[0].evidence.source, "local-regex");
   assert.equal(normalized.findings.length, 0);
+});
+
+test("normalizeReport maps detect.ast and detect.count to local evidence sources", () => {
+  const normalized = normalizeReport({
+    violations: [
+      {
+        issueId: "ISSUE-COUNT",
+        ruleId: "RULE-COUNT",
+        severity: "WARN",
+        detect: "detect.count",
+      },
+      {
+        issueId: "ISSUE-AST",
+        ruleId: "RULE-AST",
+        severity: "WARN",
+        detect: "detect.ast",
+      },
+    ],
+  });
+
+  assert.equal(normalized.report.violations[0].evidence.source, "local-count");
+  assert.equal(normalized.report.violations[1].evidence.source, "local-ast");
 });
 
 test("normalizeReport reports structural errors", () => {

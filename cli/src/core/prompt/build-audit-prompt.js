@@ -17,6 +17,7 @@ function buildAuditPrompt({ config, rules, evidence, localeMap, reportSchemaText
     `- scopes: ${formatList(config.scopes || [])}`,
     `- thresholds: ${formatObject(config.thresholds)}`,
     `- exception rules: ${formatExceptionSummary(config.exceptions)}`,
+    `- ast backend: ${formatAstConfig(config.resolvedAstConfig)}`,
     "",
     "Resolved rules:",
     ...buildRuleSections(activeRules),
@@ -27,6 +28,7 @@ function buildAuditPrompt({ config, rules, evidence, localeMap, reportSchemaText
     "Output requirements:",
     `Return strict JSON only with shape: ${reportSchemaText || "{}"}`,
     "- Save the final JSON result as ai-rule-report.json in the project root after completing the audit.",
+    "- AST-backed local evidence, when present, was produced by the configured parser backend and should be treated as strong structural evidence rather than final judgment by itself.",
     "- Only report violations at or above the configured severity threshold.",
     "- Each issue must reference exactly one ruleId.",
     "- Use local evidence when available, but do not fabricate certainty if evidence is weak.",
@@ -129,6 +131,27 @@ function formatExceptionSummary(exceptions) {
   return Object.entries(exceptions)
     .map(([rulePattern, files]) => `${rulePattern}:${files.length}`)
     .join(", ");
+}
+
+function formatAstConfig(ast) {
+  if (!ast || !ast.provider) {
+    return "(none)";
+  }
+
+  const parts = [`provider=${ast.provider}`];
+  if (ast.target) {
+    parts.push(`target=${ast.target}`);
+  }
+  if (ast.scriptParser) {
+    parts.push(`scriptParser=${ast.scriptParser}`);
+  }
+  if (ast.parserOptions && ast.parserOptions.plugins && ast.parserOptions.plugins.length > 0) {
+    parts.push(`plugins=${ast.parserOptions.plugins.join("|")}`);
+  }
+  if (Array.isArray(ast.sources) && ast.sources.length > 0) {
+    parts.push(`sources=${ast.sources.join("|")}`);
+  }
+  return parts.join(", ");
 }
 
 function resolve(localeMap, key) {

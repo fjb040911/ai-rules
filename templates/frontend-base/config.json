@@ -1,4 +1,15 @@
 {
+  "ast": {
+    "provider": "babel",
+    "target": "frontend",
+    "useProjectConfig": true,
+    "parserOptions": {
+      "sourceType": "module",
+      "plugins": [
+        "jsx"
+      ]
+    }
+  },
   "pathAliases": {
     "@src": "src",
     "@uiEntry": "src/(components|pages|views)",

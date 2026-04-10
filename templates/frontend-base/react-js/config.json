@@ -1,0 +1,13 @@
+{
+  "ast": {
+    "provider": "babel",
+    "target": "react",
+    "useProjectConfig": true,
+    "parserOptions": {
+      "sourceType": "module",
+      "plugins": [
+        "jsx"
+      ]
+    }
+  }
+}

@@ -4,6 +4,7 @@ const { writeOutput } = require("./utils/output");
 const { readLocaleMap } = require("./utils/templates");
 const { loadConfig } = require("./core/config/load-config");
 const { validateConfig } = require("./core/config/validate-config");
+const { resolveAstConfig } = require("./core/config/resolve-ast-config");
 const { parseRules } = require("./core/rules/parse-rules");
 const { resolveRulePaths } = require("./core/rules/resolve-rules");
 const { validateRules } = require("./core/rules/validate-rules");
@@ -89,6 +90,7 @@ async function readDefaultLocale() {
 async function buildAuditContext({ cwd, localeMap }) {
   const configPath = path.join(cwd, ".ai-rules", "rules-config.json");
   const config = await loadConfig(configPath);
+  config.resolvedAstConfig = await resolveAstConfig({ cwd, config });
   const rulesFile = config.rulesFile || ".ai-rules.md";
   const rulesPath = path.join(cwd, ".ai-rules", rulesFile);
   const rules = resolveRulePaths(await parseRules(rulesPath), config);

@@ -36,6 +36,20 @@ The practical value is reduced review repetition, more architecture-aware AI out
 - Automatic code modification by the CLI itself
 - Replacing human review for high-risk changes
 
+## Responsibility Boundary
+
+When AST support is introduced, AI-RULES should keep a strict boundary between code parsing and rule orchestration.
+
+- A mature JS/TS parser tool/library should handle source parsing, AST traversal, and structural candidate discovery.
+- AI-RULES should handle:
+  - reading rule/config metadata
+  - deciding which rules use AST-backed evidence
+  - converting parser results into the shared evidence model
+  - merging AST evidence with regex/import/count evidence
+  - feeding normalized evidence into audit prompts, validated reports, and fix prompts
+
+This means AI-RULES is not intended to become a general-purpose AST platform. Its role is to expose parser-backed evidence through a rule-aware CLI interface for AI-assisted audit and repair workflows.
+
 ## High-Level Workflow
 
 ### 1. Initialize
@@ -66,6 +80,10 @@ The practical value is reduced review repetition, more architecture-aware AI out
 - validates local rule/config consistency
 - collects lightweight local evidence
 - assembles a rule-aware audit prompt
+
+For future AST-backed rules, the CLI should continue to use the same pattern: parser tooling produces structural candidates, then AI-RULES normalizes those candidates into shared evidence records and includes them in the audit prompt.
+
+When AST config exists, `audit` should also surface the resolved backend summary so both users and AI can see which parser/provider assumptions were used to produce structural evidence.
 
 Optional outputs:
 
@@ -190,6 +208,7 @@ Key fields include:
 - `enabledRuleIds`
 - `severityThreshold`
 - `scopes`
+- `ast`
 - `pathAliases`
 - `thresholds`
 - `exceptions`
@@ -205,6 +224,38 @@ Merge behavior:
 - scalar fields: child overrides parent
 - arrays: merged and deduplicated
 - objects/maps: shallow merge, child wins on conflict
+
+### AST Config Model
+
+AST-related configuration should live in the AI-RULES config layer as high-level orchestration metadata, not as a full copy of external parser configuration files.
+
+Recommended shape:
+
+```json
+{
+  "ast": {
+    "provider": "babel",
+    "target": "react",
+    "useProjectConfig": true,
+    "parserOptions": {
+      "sourceType": "module",
+      "plugins": ["jsx", "typescript"]
+    }
+  }
+}
+```
+
+The merge and resolution order should be:
+
+1. CLI defaults derived from the selected template/stack
+2. detected project config such as `tsconfig.json`, `.babelrc`, `babel.config.json`, or `package.json#babel`
+3. explicit `.ai-rules/config.json` overrides
+
+This keeps AST configuration understandable:
+
+- parser-specific files remain the source of low-level syntax/runtime detail
+- AI-RULES keeps only the high-level orchestration config it needs
+- the runtime resolves a final `resolvedAstConfig` used by audit/evidence collection
 
 Example local layout override:
 
@@ -238,13 +289,14 @@ The CLI resolves aliases before evidence collection and prompt generation.
 - `detect.regex`
 - `detect.import`
 - `detect.include`
+- selected `detect.ast` rules for frontend JS/TS stacks
 
 ### AI-only for now
 
-- `detect.ast`
 - `detect.semantic`
+- unsupported `detect.ast` rules outside the first supported AST subset
 
-This means AI-RULES can attach concrete file/line/snippet candidates for some rules, while still delegating more advanced reasoning to the AI model.
+The first AST-backed local evidence slice currently targets frontend JS/TS projects and covers a narrow supported subset such as raw HTML injection, dynamic code execution, React index keys, and TypeScript `any` usage. Other AST rules still fall back to AI-guided judgment.
 
 ## Architecture
 

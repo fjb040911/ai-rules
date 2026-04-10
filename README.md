@@ -27,6 +27,7 @@ In short: repository governance tools protect the merge boundary; AI-RULES guide
 - Initializes reusable rule templates for different stacks
 - Parses `.ai-rules/.ai-rules.md` and `rules-config.json`
 - Merges `extends` chains for rules and config
+- Resolves high-level AST config from template defaults, detected project config, and local AI-RULES overrides
 - Collects lightweight local evidence for `regex` and `import/include` style rules
 - Collects lightweight local evidence for minimal `count` rules such as `function-lines` and `params-count`
 - Supports config-level `thresholds` for active parameterized rule behavior
@@ -41,14 +42,15 @@ Current templates already cover a first batch of high-priority engineering rules
 
 ### Frontend / React / Vue
 
+- First AST-backed frontend local evidence is now supported for selected JS/TS rules
 - UI code must not call network or data layers directly
-- Raw HTML injection via `innerHTML` / `dangerouslySetInnerHTML` is flagged
+- Raw HTML injection via `innerHTML` / `dangerouslySetInnerHTML` is flagged and can now produce AST-backed local evidence
 - Semantic XSS flows from untrusted rich content into DOM sinks are called out
-- Dynamic execution via `eval()` / `Function()` is flagged
+- Dynamic execution via `eval()` / `Function()` is flagged and can now produce AST-backed local evidence
 - Hardcoded frontend secrets / API keys are flagged
 - Third-party HTML script tags without SRI are flagged
 - Hooks must follow React hook call rules
-- React lists should not use array index as `key`
+- React lists should not use array index as `key`, with AST-backed local evidence for supported React files
 - React effect-driven remote requests should use stable dependency control
 - Vue `computed` must stay pure
 - Vue props must not be mutated directly
@@ -355,10 +357,17 @@ Current support in the CLI:
 - `detect.regex`: local evidence collection supported
 - `detect.import`: local evidence collection supported
 - `detect.include`: local evidence collection supported
-- `detect.ast`: AI-only for now
+- `detect.ast`: first frontend AST-backed rules now support local evidence
 - `detect.semantic`: AI-only for now
 
-This means the CLI can attach concrete local evidence for some rules, while still allowing AI-guided review for higher-level semantic constraints.
+Current AST-backed local evidence focuses on frontend JS/TS projects and covers the first narrow batch of rules:
+
+- raw HTML injection such as `dangerouslySetInnerHTML` / `innerHTML`
+- dynamic code execution such as `eval()` / `Function()`
+- React list rendering keyed by loop index
+- TypeScript `any` usage in TS/TSX files
+
+This means the CLI can now attach concrete local evidence for regex/import/include/count and a first slice of AST-backed frontend rules, while still allowing AI-guided review for higher-level semantic constraints and unsupported AST rules.
 
 The current templates intentionally mix:
 
@@ -368,6 +377,32 @@ The current templates intentionally mix:
 ## Config Extensions
 
 The config model now supports two rule-aware extensions:
+
+### `ast`
+
+Used for high-level AST backend orchestration. AI-RULES keeps this config intentionally small and merges it with detected project config at runtime.
+
+Example:
+
+```json
+{
+  "ast": {
+    "provider": "babel",
+    "target": "react",
+    "useProjectConfig": true,
+    "parserOptions": {
+      "sourceType": "module",
+      "plugins": ["jsx", "typescript"]
+    }
+  }
+}
+```
+
+At runtime, AI-RULES resolves AST settings in this order:
+
+1. template defaults
+2. detected project config such as `tsconfig.json` / `.babelrc` / `package.json#babel`
+3. local `.ai-rules/config.json` overrides
 
 ### `thresholds`
 

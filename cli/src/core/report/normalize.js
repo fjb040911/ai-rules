@@ -200,6 +200,12 @@ function inferEvidenceSource(matchedBy) {
   if (matchedBy === "detect.import" || matchedBy === "detect.include") {
     return "local-import";
   }
+  if (matchedBy === "detect.count") {
+    return "local-count";
+  }
+  if (matchedBy === "detect.ast") {
+    return "local-ast";
+  }
   return "ai-only";
 }
 

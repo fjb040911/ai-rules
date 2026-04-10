@@ -5,6 +5,7 @@ async function validateConfig({ config, cwd, configDir }) {
   return [
     ...validateThresholds(config.thresholds),
     ...validateExceptions(config.exceptions),
+    ...validateAstConfig(config.ast),
     ...(await validatePathAliases({ pathAliases: config.pathAliases, cwd, configDir })),
   ];
 }
@@ -44,6 +45,43 @@ function validateExceptions(exceptions) {
     if (!Array.isArray(filePatterns) || filePatterns.some((item) => typeof item !== "string")) {
       findings.push({ level: "error", message: `exceptions.${rulePattern} must be an array of glob strings.` });
     }
+  }
+
+  return findings;
+}
+
+function validateAstConfig(ast) {
+  if (!ast) {
+    return [];
+  }
+
+  const findings = [];
+  if (typeof ast !== "object" || Array.isArray(ast)) {
+    findings.push({ level: "error", message: "ast must be an object map." });
+    return findings;
+  }
+
+  if (ast.provider != null && typeof ast.provider !== "string") {
+    findings.push({ level: "error", message: "ast.provider must be a string." });
+  }
+  if (ast.target != null && typeof ast.target !== "string") {
+    findings.push({ level: "error", message: "ast.target must be a string." });
+  }
+  if (ast.scriptParser != null && typeof ast.scriptParser !== "string") {
+    findings.push({ level: "error", message: "ast.scriptParser must be a string." });
+  }
+  if (ast.useProjectConfig != null && typeof ast.useProjectConfig !== "boolean") {
+    findings.push({ level: "error", message: "ast.useProjectConfig must be a boolean." });
+  }
+  if (ast.parserOptions != null && (typeof ast.parserOptions !== "object" || Array.isArray(ast.parserOptions))) {
+    findings.push({ level: "error", message: "ast.parserOptions must be an object map." });
+  }
+  if (
+    ast.parserOptions &&
+    ast.parserOptions.plugins != null &&
+    (!Array.isArray(ast.parserOptions.plugins) || ast.parserOptions.plugins.some((item) => typeof item !== "string"))
+  ) {
+    findings.push({ level: "error", message: "ast.parserOptions.plugins must be an array of strings." });
   }
 
   return findings;
@@ -103,6 +141,7 @@ module.exports = {
   validateConfig,
   validateThresholds,
   validateExceptions,
+  validateAstConfig,
   validatePathAliases,
   pathAliasProbePath,
 };
