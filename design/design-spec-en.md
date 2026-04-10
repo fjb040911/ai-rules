@@ -296,7 +296,7 @@ The CLI resolves aliases before evidence collection and prompt generation.
 - `detect.semantic`
 - unsupported `detect.ast` rules outside the first supported AST subset
 
-The first AST-backed local evidence slice currently targets frontend JS/TS projects and covers a narrow supported subset such as raw HTML injection, dynamic code execution, React index keys, and TypeScript `any` usage. Other AST rules still fall back to AI-guided judgment.
+The first AST-backed local evidence slice currently targets frontend JS/TS/Vue projects and covers a narrow supported subset such as direct UI network calls, raw HTML injection, dynamic code execution, React index keys, Vue prop mutation, Vue index keys, and TypeScript `any` usage. Other AST rules still fall back to AI-guided judgment.
 
 ## Architecture
 

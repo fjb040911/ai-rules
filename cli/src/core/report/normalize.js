@@ -55,6 +55,13 @@ function normalizeViolation(issue) {
     evidence: {
       source: (issue.evidence && issue.evidence.source) || inferEvidenceSource(matchedBy),
       matchedBy,
+      strategy:
+        (issue.evidence && issue.evidence.strategy) ||
+        (typeof issue.strategy === "string" ? issue.strategy : null),
+      confidence:
+        normalizeConfidence(issue.evidence && issue.evidence.confidence) != null
+          ? normalizeConfidence(issue.evidence && issue.evidence.confidence)
+          : normalizeConfidence(issue.evidenceConfidence),
     },
     context: normalizeContext(issue),
   };

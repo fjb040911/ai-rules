@@ -77,6 +77,12 @@ function buildEvidenceSections(rules, evidenceByRule) {
     }
 
     lines.push(`- ${rule.id} (${item.mode}, totalMatches=${item.totalMatches})`);
+    if (item.strategy) {
+      lines.push(`  strategy: ${item.strategy}`);
+    }
+    if (typeof item.confidence === "number") {
+      lines.push(`  confidence: ${item.confidence.toFixed(2)}`);
+    }
     if (item.note) {
       lines.push(`  note: ${item.note}`);
     }

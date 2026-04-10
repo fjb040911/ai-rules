@@ -1,6 +1,6 @@
 {
   "name": "ai-law",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "AI-RULES CLI for architecture-aware AI coding governance",
   "license": "MIT",
   "homepage": "https://github.com/fjb040911/ai-rules#readme",
@@ -18,7 +18,6 @@
   "files": [
     "cli/src",
     "templates",
-    "docs",
     "design",
     "README.md",
     "rule.md"
