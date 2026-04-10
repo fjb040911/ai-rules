@@ -1,6 +1,7 @@
 const babelParser = require("@babel/parser");
 const traverse = require("@babel/traverse").default;
 const { parse: parseVueSfc } = require("@vue/compiler-sfc");
+const { baseParse: parseVueTemplate } = require("@vue/compiler-dom");
 
 async function matchAst({ rule, filePath, content, astConfig }) {
   if (!astConfig || !astConfig.provider) {
@@ -28,11 +29,16 @@ async function matchAst({ rule, filePath, content, astConfig }) {
     };
   }
 
-  const documents = parseDocuments({ filePath, content, astConfig });
+  const documents = parseDocuments({ filePath, content, astConfig, strategy });
   const matches = [];
 
   for (const doc of documents) {
     if (!doc.ast) {
+      continue;
+    }
+
+    if (doc.kind === "vue-template") {
+      traverseVueTemplate(doc.ast, buildVueTemplateVisitors(strategy, doc, matches));
       continue;
     }
 
@@ -42,6 +48,8 @@ async function matchAst({ rule, filePath, content, astConfig }) {
   return {
     supported: true,
     note: null,
+    strategy: rule.detect && rule.detect.ast,
+    confidence: inferConfidence(strategy),
     matches,
   };
 }
@@ -56,23 +64,26 @@ function resolveAstStrategy(rule) {
   const lookup = {
     "frontend/no-raw-html-injection": "no-raw-html-injection",
     "frontend/no-dynamic-code-exec": "no-dynamic-code-exec",
+    "frontend/no-direct-network-call": "no-direct-network-call",
     "react/no-index-key": "react-no-index-key",
     "typescript/no-any": "typescript-no-any",
+    "vue/no-prop-mutation": "vue-no-prop-mutation",
+    "vue/no-index-key": "vue-no-index-key",
     TSAnyKeyword: "typescript-no-any",
   };
 
   return lookup[normalized] || null;
 }
 
-function parseDocuments({ filePath, content, astConfig }) {
+function parseDocuments({ filePath, content, astConfig, strategy }) {
   if (filePath.endsWith(".vue")) {
-    return parseVueDocuments({ filePath, content, astConfig });
+    return parseVueDocuments({ filePath, content, astConfig, strategy });
   }
 
   return [parseScriptDocument({ filePath, content, astConfig, lineOffset: 0 })];
 }
 
-function parseVueDocuments({ filePath, content, astConfig }) {
+function parseVueDocuments({ filePath, content, astConfig, strategy }) {
   const parsed = parseVueSfc(content, { filename: filePath });
   const blocks = [];
 
@@ -91,6 +102,22 @@ function parseVueDocuments({ filePath, content, astConfig }) {
     );
   }
 
+  if (strategy === "vue-no-index-key" && parsed.descriptor.template && parsed.descriptor.template.content) {
+    blocks.push(
+      parseVueTemplateDocument({
+        filePath,
+        content: parsed.descriptor.template.content,
+        lineOffset: Math.max(
+          0,
+          (parsed.descriptor.template.loc &&
+            parsed.descriptor.template.loc.start &&
+            parsed.descriptor.template.loc.start.line) ||
+            1
+        ),
+      })
+    );
+  }
+
   return blocks;
 }
 
@@ -101,6 +128,15 @@ function parseScriptDocument({ filePath, content, astConfig, lineOffset }) {
     return { filePath, ast, lineOffset, content };
   } catch {
     return { filePath, ast: null, lineOffset, content };
+  }
+}
+
+function parseVueTemplateDocument({ filePath, content, lineOffset }) {
+  try {
+    const ast = parseVueTemplate(content, { comments: false });
+    return { filePath, ast, lineOffset, content, kind: "vue-template" };
+  } catch {
+    return { filePath, ast: null, lineOffset, content, kind: "vue-template" };
   }
 }
 
@@ -155,6 +191,15 @@ function buildVisitors(strategy, doc, matches, sourceContent) {
           }
         },
       };
+    case "no-direct-network-call":
+      return {
+        CallExpression(path) {
+          const callee = path.node.callee;
+          if (isNetworkCall(callee)) {
+            pushMatch(matches, doc, path.node.loc && path.node.loc.start.line, formatCallee(callee), doc.content);
+          }
+        },
+      };
     case "react-no-index-key":
       return {
         JSXAttribute(path) {
@@ -172,9 +217,43 @@ function buildVisitors(strategy, doc, matches, sourceContent) {
           pushMatch(matches, doc, path.node.loc && path.node.loc.start.line, "any type", sourceContent);
         },
       };
+    case "vue-no-prop-mutation":
+      return {
+        AssignmentExpression(path) {
+          if (isPropsMutation(path.node.left)) {
+            pushMatch(matches, doc, path.node.loc && path.node.loc.start.line, "props mutation", doc.content);
+          }
+        },
+        UpdateExpression(path) {
+          if (isPropsMutation(path.node.argument)) {
+            pushMatch(matches, doc, path.node.loc && path.node.loc.start.line, "props mutation", doc.content);
+          }
+        },
+      };
     default:
       return {};
   }
+}
+
+function buildVueTemplateVisitors(strategy, doc, matches) {
+  if (strategy !== "vue-no-index-key") {
+    return {};
+  }
+
+  return {
+    ElementNode(node) {
+      const keyDirective = findVueKeyDirective(node);
+      if (!keyDirective || !isVueIndexKey(keyDirective)) {
+        return;
+      }
+
+      const localLine =
+        (keyDirective.loc && keyDirective.loc.start && keyDirective.loc.start.line) ||
+        (node.loc && node.loc.start && node.loc.start.line) ||
+        1;
+      pushMatch(matches, doc, localLine, "index-based key", doc.content);
+    },
+  };
 }
 
 function isInnerHtmlAssignment(left) {
@@ -199,12 +278,137 @@ function isIndexKeyAttribute(value) {
   return false;
 }
 
+function isNetworkCall(callee) {
+  if (!callee) {
+    return false;
+  }
+  if (callee.type === "Identifier") {
+    return ["fetch", "axios", "ky", "request"].includes(callee.name);
+  }
+  if (callee.type === "MemberExpression" && !callee.computed) {
+    const objectName = callee.object && callee.object.type === "Identifier" ? callee.object.name : null;
+    return ["axios", "ky", "request"].includes(objectName);
+  }
+  return false;
+}
+
+function formatCallee(callee) {
+  if (!callee) {
+    return "network call";
+  }
+  if (callee.type === "Identifier") {
+    return `${callee.name}(...)`;
+  }
+  if (callee.type === "MemberExpression" && !callee.computed) {
+    const objectName = callee.object && callee.object.type === "Identifier" ? callee.object.name : "object";
+    const propertyName =
+      callee.property && callee.property.type === "Identifier" ? callee.property.name : "call";
+    return `${objectName}.${propertyName}(...)`;
+  }
+  return "network call";
+}
+
+function isPropsMutation(node) {
+  return (
+    node &&
+    node.type === "MemberExpression" &&
+    !node.computed &&
+    node.object &&
+    node.object.type === "Identifier" &&
+    node.object.name === "props"
+  );
+}
+
+function traverseVueTemplate(node, visitors) {
+  if (!node || typeof node !== "object") {
+    return;
+  }
+
+  const handler = visitors[node.typeName || inferVueNodeType(node)];
+  if (typeof handler === "function") {
+    handler(node);
+  }
+
+  for (const child of vueChildNodes(node)) {
+    traverseVueTemplate(child, visitors);
+  }
+}
+
+function inferVueNodeType(node) {
+  if (node.type === 1) {
+    return "ElementNode";
+  }
+  if (node.type === 0) {
+    return "RootNode";
+  }
+  return `NodeType${node.type}`;
+}
+
+function vueChildNodes(node) {
+  const children = [];
+
+  if (Array.isArray(node.children)) {
+    children.push(...node.children);
+  }
+  if (Array.isArray(node.branches)) {
+    children.push(...node.branches);
+  }
+  if (Array.isArray(node.props)) {
+    children.push(...node.props);
+  }
+  if (node.arg) {
+    children.push(node.arg);
+  }
+  if (node.exp) {
+    children.push(node.exp);
+  }
+
+  return children;
+}
+
+function findVueKeyDirective(node) {
+  if (!node || !Array.isArray(node.props)) {
+    return null;
+  }
+
+  return node.props.find((prop) => {
+    if (prop.type !== 7 || !prop.arg) {
+      return false;
+    }
+    return prop.arg.type === 4 && prop.arg.content === "key";
+  });
+}
+
+function isVueIndexKey(directive) {
+  if (!directive || !directive.exp || directive.exp.type !== 4) {
+    return false;
+  }
+  const content = String(directive.exp.content || "").trim();
+  return content === "index" || content === "i";
+}
+
+function inferConfidence(strategy) {
+  if (strategy === "vue-no-index-key" || strategy === "react-no-index-key") {
+    return 0.96;
+  }
+  if (
+    strategy === "no-raw-html-injection" ||
+    strategy === "no-dynamic-code-exec" ||
+    strategy === "no-direct-network-call" ||
+    strategy === "vue-no-prop-mutation" ||
+    strategy === "typescript-no-any"
+  ) {
+    return 0.93;
+  }
+  return 0.9;
+}
+
 function pushMatch(matches, doc, localLine, label, sourceContent) {
   const line = (localLine || 1) + doc.lineOffset;
   matches.push({
     file: doc.filePath,
     line,
-    snippet: readLine(sourceContent, line),
+    snippet: readLine(sourceContent, localLine || 1),
     label,
   });
 }

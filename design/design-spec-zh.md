@@ -296,7 +296,7 @@ CLI 会在收集 evidence 和生成 Prompt 之前解析这些别名。
 - `detect.semantic`
 - 尚未进入首批支持列表的 `detect.ast` 规则
 
-当前 AST-backed local evidence 只覆盖前端 JS/TS 的第一批规则，例如原始 HTML 注入、`eval/Function`、React index key、TypeScript `any`。其他 AST 规则仍然回退为 AI-guided judgment。
+当前 AST-backed local evidence 只覆盖前端 JS/TS/Vue 的第一批规则，例如 UI 直接网络调用、原始 HTML 注入、`eval/Function`、React index key、Vue props mutation、Vue index key、TypeScript `any`。其他 AST 规则仍然回退为 AI-guided judgment。
 
 ## 系统分层
 

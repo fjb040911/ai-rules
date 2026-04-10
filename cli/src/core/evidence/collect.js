@@ -43,6 +43,8 @@ async function collectEvidence({ cwd, config, rules }) {
     } else if (rule.detect && rule.detect.ast) {
       let astNote = null;
       let astSupported = false;
+      let astStrategy = null;
+      let astConfidence = null;
       for (const file of filteredFiles) {
         const content = await readFileCached(contentCache, cwd, file);
         const result = await matchAst({
@@ -55,6 +57,12 @@ async function collectEvidence({ cwd, config, rules }) {
         if (!astNote && result.note) {
           astNote = result.note;
         }
+        if (!astStrategy && result.strategy) {
+          astStrategy = result.strategy;
+        }
+        if (astConfidence == null && typeof result.confidence === "number") {
+          astConfidence = result.confidence;
+        }
         matches.push(...result.matches);
       }
 
@@ -64,6 +72,8 @@ async function collectEvidence({ cwd, config, rules }) {
           suppressedFileCount: sourceFiles.length - filteredFiles.length,
           astSupported,
           astNote,
+          astStrategy,
+          astConfidence,
         })
       );
       continue;
@@ -82,36 +92,42 @@ async function collectEvidence({ cwd, config, rules }) {
 
 function buildEvidenceRecord(rule, matches, meta) {
   if (rule.detect && rule.detect.regex) {
-    return {
-      ruleId: rule.id,
-      mode: "local-regex",
-      matches: matches.slice(0, 10),
-      totalMatches: matches.length,
-      exceptionPatterns: meta.exceptionPatterns,
-      suppressedFileCount: meta.suppressedFileCount,
-    };
+      return {
+        ruleId: rule.id,
+        mode: "local-regex",
+        strategy: `detect.${rule.detectKind || "regex"}`,
+        confidence: 0.82,
+        matches: matches.slice(0, 10),
+        totalMatches: matches.length,
+        exceptionPatterns: meta.exceptionPatterns,
+        suppressedFileCount: meta.suppressedFileCount,
+      };
   }
 
   if (rule.detect && (rule.detect.import || rule.detect.include)) {
-    return {
-      ruleId: rule.id,
-      mode: "local-import",
-      matches: matches.slice(0, 10),
-      totalMatches: matches.length,
-      exceptionPatterns: meta.exceptionPatterns,
-      suppressedFileCount: meta.suppressedFileCount,
-    };
+      return {
+        ruleId: rule.id,
+        mode: "local-import",
+        strategy: `detect.${rule.detectKind || "import"}`,
+        confidence: 0.88,
+        matches: matches.slice(0, 10),
+        totalMatches: matches.length,
+        exceptionPatterns: meta.exceptionPatterns,
+        suppressedFileCount: meta.suppressedFileCount,
+      };
   }
 
   if (rule.detect && rule.detect.count) {
-    return {
-      ruleId: rule.id,
-      mode: "local-count",
-      matches: matches.slice(0, 10),
-      totalMatches: matches.length,
-      exceptionPatterns: meta.exceptionPatterns,
-      suppressedFileCount: meta.suppressedFileCount,
-    };
+      return {
+        ruleId: rule.id,
+        mode: "local-count",
+        strategy: `detect.${rule.detectKind || "count"}`,
+        confidence: 0.91,
+        matches: matches.slice(0, 10),
+        totalMatches: matches.length,
+        exceptionPatterns: meta.exceptionPatterns,
+        suppressedFileCount: meta.suppressedFileCount,
+      };
   }
 
   if (rule.detect && rule.detect.ast) {
@@ -119,6 +135,8 @@ function buildEvidenceRecord(rule, matches, meta) {
       return {
         ruleId: rule.id,
         mode: "local-ast",
+        strategy: meta.astStrategy || "detect.ast",
+        confidence: meta.astConfidence == null ? 0.93 : meta.astConfidence,
         matches: matches.slice(0, 10),
         totalMatches: matches.length,
         exceptionPatterns: meta.exceptionPatterns,
@@ -129,6 +147,8 @@ function buildEvidenceRecord(rule, matches, meta) {
     return {
       ruleId: rule.id,
       mode: "ai-only",
+      strategy: meta.astStrategy || "detect.ast",
+      confidence: null,
       matches: [],
       totalMatches: 0,
       note: meta.astNote || "This AST rule requires AI judgment.",
@@ -140,6 +160,8 @@ function buildEvidenceRecord(rule, matches, meta) {
   return {
     ruleId: rule.id,
     mode: "ai-only",
+    strategy: `detect.${rule.detectKind || "semantic"}`,
+    confidence: null,
     matches: [],
     totalMatches: 0,
     note: "This rule uses AST or semantic detection and requires AI judgment.",

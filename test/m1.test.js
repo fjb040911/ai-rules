@@ -462,6 +462,7 @@ test("collectEvidence gathers frontend AST candidates", async () => {
     [
       "type Item = any;",
       "export function Widget({ items }) {",
+      "  const load = () => fetch('/api/items');",
       "  const html = '<b>x</b>';",
       "  return (",
       "    <div>",
@@ -494,6 +495,10 @@ test("collectEvidence gathers frontend AST candidates", async () => {
     },
     rules: [
       {
+        id: "ARCH-101",
+        detect: { ast: "frontend/no-direct-network-call", where: "filePath in src/**/*.tsx" },
+      },
+      {
         id: "FE-SEC-101",
         detect: { ast: "frontend/no-raw-html-injection", where: "filePath in src/**/*.tsx" },
       },
@@ -518,22 +523,28 @@ test("collectEvidence gathers frontend AST candidates", async () => {
 
   assert.equal(evidence[0].mode, "local-ast");
   assert.equal(evidence[0].totalMatches, 1);
-  assert.match(evidence[0].matches[0].snippet, /dangerouslySetInnerHTML/);
+  assert.equal(evidence[0].strategy, "frontend/no-direct-network-call");
+  assert.equal(evidence[0].confidence, 0.93);
+  assert.match(evidence[0].matches[0].snippet, /fetch/);
 
   assert.equal(evidence[1].mode, "local-ast");
   assert.equal(evidence[1].totalMatches, 1);
-  assert.match(evidence[1].matches[0].snippet, /eval/);
+  assert.match(evidence[1].matches[0].snippet, /dangerouslySetInnerHTML/);
 
   assert.equal(evidence[2].mode, "local-ast");
   assert.equal(evidence[2].totalMatches, 1);
-  assert.match(evidence[2].matches[0].snippet, /key=\{index\}/);
+  assert.match(evidence[2].matches[0].snippet, /eval/);
 
   assert.equal(evidence[3].mode, "local-ast");
   assert.equal(evidence[3].totalMatches, 1);
-  assert.match(evidence[3].matches[0].snippet, /type Item = any/);
+  assert.match(evidence[3].matches[0].snippet, /key=\{index\}/);
 
-  assert.equal(evidence[4].mode, "ai-only");
-  assert.match(evidence[4].note, /not supported/);
+  assert.equal(evidence[4].mode, "local-ast");
+  assert.equal(evidence[4].totalMatches, 1);
+  assert.match(evidence[4].matches[0].snippet, /type Item = any/);
+
+  assert.equal(evidence[5].mode, "ai-only");
+  assert.match(evidence[5].note, /not supported/);
 });
 
 test("collectEvidence keeps non-frontend ast rules AI-only without crashing", async () => {
@@ -583,6 +594,64 @@ test("collectEvidence keeps non-frontend ast rules AI-only without crashing", as
   assert.match(evidence[0].note, /No local AST backend is configured|frontend JS\/TS\/Vue files/);
   assert.equal(evidence[1].mode, "ai-only");
   assert.match(evidence[1].note, /No local AST backend is configured|frontend JS\/TS\/Vue files/);
+});
+
+test("collectEvidence gathers Vue AST candidates", async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-rules-vue-ast-evidence-"));
+  await fs.mkdir(path.join(tempDir, "src"), { recursive: true });
+  await fs.writeFile(
+    path.join(tempDir, "src", "Widget.vue"),
+    [
+      "<template>",
+      "  <li v-for=\"(item, index) in items\" :key=\"index\">{{ item.name }}</li>",
+      "</template>",
+      "<script setup lang=\"ts\">",
+      "const props = defineProps<{ count: number }>();",
+      "props.count = props.count + 1;",
+      "</script>",
+      "",
+    ].join("\n"),
+    "utf8"
+  );
+
+  const evidence = await collectEvidence({
+    cwd: tempDir,
+    config: {
+      detectOptions: {
+        include: ["src/**/*.vue"],
+        exclude: [],
+      },
+      resolvedAstConfig: {
+        provider: "vue-sfc",
+        target: "vue",
+        scriptParser: "babel",
+        parserOptions: {
+          sourceType: "module",
+          plugins: ["jsx", "typescript"],
+        },
+      },
+    },
+    rules: [
+      {
+        id: "VUE-304",
+        detect: { ast: "vue/no-prop-mutation", where: "filePath in src/**/*.vue" },
+      },
+      {
+        id: "VUE-305",
+        detect: { ast: "vue/no-index-key", where: "filePath in src/**/*.vue" },
+      },
+    ],
+  });
+
+  assert.equal(evidence[0].mode, "local-ast");
+  assert.equal(evidence[0].totalMatches, 1);
+  assert.equal(evidence[0].strategy, "vue/no-prop-mutation");
+  assert.match(evidence[0].matches[0].snippet, /props\.count/);
+
+  assert.equal(evidence[1].mode, "local-ast");
+  assert.equal(evidence[1].totalMatches, 1);
+  assert.equal(evidence[1].strategy, "vue/no-index-key");
+  assert.match(evidence[1].matches[0].snippet, /:key="index"/);
 });
 
 test("collectEvidence respects rule exceptions from config", async () => {
@@ -662,6 +731,8 @@ test("buildAuditPrompt includes config, rules, and evidence sections", () => {
       {
         ruleId: "RULE-001",
         mode: "local-regex",
+        strategy: "detect.regex",
+        confidence: 0.82,
         totalMatches: 1,
         exceptionPatterns: ["stories/**"],
         suppressedFileCount: 2,
@@ -680,6 +751,8 @@ test("buildAuditPrompt includes config, rules, and evidence sections", () => {
   assert.match(prompt, /Project config summary:/);
   assert.match(prompt, /### RULE-001/);
   assert.match(prompt, /src\/page\.ts:2/);
+  assert.match(prompt, /strategy: detect\.regex/);
+  assert.match(prompt, /confidence: 0\.82/);
   assert.match(prompt, /maxFunctionLines=80/);
   assert.match(prompt, /RULE-\*:1/);
   assert.match(prompt, /Return strict JSON only/);
@@ -730,12 +803,18 @@ test("normalizeReport maps detect.ast and detect.count to local evidence sources
         ruleId: "RULE-AST",
         severity: "WARN",
         detect: "detect.ast",
+        evidence: {
+          strategy: "frontend/no-direct-network-call",
+          confidence: 0.93,
+        },
       },
     ],
   });
 
   assert.equal(normalized.report.violations[0].evidence.source, "local-count");
   assert.equal(normalized.report.violations[1].evidence.source, "local-ast");
+  assert.equal(normalized.report.violations[1].evidence.strategy, "frontend/no-direct-network-call");
+  assert.equal(normalized.report.violations[1].evidence.confidence, 0.93);
 });
 
 test("normalizeReport reports structural errors", () => {

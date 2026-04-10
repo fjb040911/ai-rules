@@ -1,12 +1,15 @@
 {
   "name": "ai-law",
-  "version": "0.1.0",
+  "version": "0.7.1",
   "description": "AI-RULES CLI",
   "license": "MIT",
   "bin": {
     "ai-law": "src/index.js"
   },
   "dependencies": {
+    "@babel/parser": "^7.29.2",
+    "@babel/traverse": "^7.29.0",
+    "@vue/compiler-sfc": "^3.5.32",
     "clipboardy": "^3.0.0",
     "inquirer": "^9.2.21"
   }

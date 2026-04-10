@@ -14,3 +14,4 @@ rule.md
 cli/node_modules
 cli/.history
 /docs
+.npm-local-cache/

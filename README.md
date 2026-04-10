@@ -30,6 +30,7 @@ In short: repository governance tools protect the merge boundary; AI-RULES guide
 - Resolves high-level AST config from template defaults, detected project config, and local AI-RULES overrides
 - Collects lightweight local evidence for `regex` and `import/include` style rules
 - Collects lightweight local evidence for minimal `count` rules such as `function-lines` and `params-count`
+- Collects AST-backed local evidence for a first supported slice of frontend JS/TS/Vue rules
 - Supports config-level `thresholds` for active parameterized rule behavior
 - Supports config-level `exceptions` to suppress known-safe files per rule pattern
 - Generates rule-aware audit prompts instead of static prompt text
@@ -53,8 +54,8 @@ Current templates already cover a first batch of high-priority engineering rules
 - React lists should not use array index as `key`, with AST-backed local evidence for supported React files
 - React effect-driven remote requests should use stable dependency control
 - Vue `computed` must stay pure
-- Vue props must not be mutated directly
-- Vue lists should not use loop index as `:key`
+- Vue props must not be mutated directly, with AST-backed local evidence for supported `.vue` files
+- Vue lists should not use loop index as `:key`, with AST-backed local evidence for supported `.vue` files
 - Direct DOM access in Vue components is discouraged
 
 ### Python Base / FastAPI
@@ -96,7 +97,8 @@ AI-RULES is not a full static analysis engine yet.
 
 - `regex` and `import/include` detection can collect local evidence
 - minimal `count` detection can collect local evidence for `function-lines` and `params-count`
-- `ast` and `semantic` rules are still AI-guided and treated as `ai-only`
+- selected frontend `ast` rules can now produce parser-backed local evidence
+- unsupported `ast` rules and `semantic` rules remain AI-guided and treated as `ai-only`
 - The CLI helps structure context and outputs, while the AI still makes the final audit decision
 
 ## Language Support
@@ -362,12 +364,15 @@ Current support in the CLI:
 
 Current AST-backed local evidence focuses on frontend JS/TS projects and covers the first narrow batch of rules:
 
+- direct network calls from UI entry code such as `fetch()` / `axios.*`
 - raw HTML injection such as `dangerouslySetInnerHTML` / `innerHTML`
 - dynamic code execution such as `eval()` / `Function()`
 - React list rendering keyed by loop index
+- Vue props mutation in `.vue` script blocks
+- Vue list rendering keyed by loop index in `.vue` templates
 - TypeScript `any` usage in TS/TSX files
 
-This means the CLI can now attach concrete local evidence for regex/import/include/count and a first slice of AST-backed frontend rules, while still allowing AI-guided review for higher-level semantic constraints and unsupported AST rules.
+This means the CLI can now attach concrete local evidence for regex/import/include/count and a first slice of AST-backed frontend rules across React and Vue, while still allowing AI-guided review for higher-level semantic constraints and unsupported AST rules.
 
 The current templates intentionally mix:
 
