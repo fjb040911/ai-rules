@@ -166,7 +166,7 @@ function normalizeSeverity(value) {
   if (["FATAL", "WARN", "INFO"].includes(normalized)) {
     return normalized;
   }
-  return normalized;
+  return "INFO";
 }
 
 function normalizeConfidence(value) {
