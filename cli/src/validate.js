@@ -24,7 +24,8 @@ async function runValidateReport(argv) {
     return;
   }
 
-  const normalized = normalizeReport(rawReport);
+  const availableEvidenceIds = await maybeLoadAvailableEvidenceIds(cwd);
+  const normalized = normalizeReport(rawReport, { availableEvidenceIds });
 
   if (outputJson) {
     process.stdout.write(JSON.stringify(normalized.report, null, 2) + "\n");
@@ -65,3 +66,29 @@ async function fileExists(targetPath) {
 module.exports = {
   runValidateReport,
 };
+
+async function maybeLoadAvailableEvidenceIds(cwd) {
+  const contextPath = path.join(cwd, ".ai-rules", "cache", "audit-context.json");
+  const exists = await fileExists(contextPath);
+  if (!exists) {
+    return null;
+  }
+
+  try {
+    const context = await readJson(contextPath);
+    const values = new Set();
+    for (const entry of context.evidence || []) {
+      if (entry && typeof entry.evidenceId === "string") {
+        values.add(entry.evidenceId);
+      }
+      for (const match of entry.matches || []) {
+        if (match && typeof match.matchId === "string") {
+          values.add(match.matchId);
+        }
+      }
+    }
+    return values;
+  } catch {
+    return null;
+  }
+}

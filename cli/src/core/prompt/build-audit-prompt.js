@@ -76,7 +76,7 @@ function buildEvidenceSections(rules, evidenceByRule) {
       continue;
     }
 
-    lines.push(`- ${rule.id} (${item.mode}, totalMatches=${item.totalMatches})`);
+    lines.push(`- ${rule.id} (${item.mode}, totalMatches=${item.totalMatches}, evidenceId=${item.evidenceId || "n/a"})`);
     if (item.strategy) {
       lines.push(`  strategy: ${item.strategy}`);
     }
@@ -98,7 +98,7 @@ function buildEvidenceSections(rules, evidenceByRule) {
     }
     for (const match of item.matches.slice(0, 5)) {
       const location = match.line ? `${match.file}:${match.line}` : match.file;
-      lines.push(`  - ${location}`);
+      lines.push(`  - ${location}${match.matchId ? ` [${match.matchId}]` : ""}`);
       lines.push(`    snippet: ${match.snippet}`);
     }
   }
