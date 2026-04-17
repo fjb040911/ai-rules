@@ -1,7 +1,7 @@
-function normalizeReport(rawReport) {
+function normalizeReport(rawReport, options = {}) {
   const rawViolations = extractViolations(rawReport);
   const violations = rawViolations.map(normalizeViolation);
-  const findings = validateNormalizedViolations(violations);
+  const findings = validateNormalizedViolations(violations, options);
 
   return {
     report: {
@@ -33,6 +33,7 @@ function extractViolations(rawReport) {
 
 function normalizeViolation(issue) {
   const matchedBy = inferMatchedBy(issue);
+  const evidenceIds = inferEvidenceIds(issue);
   return {
     issueId: issue.issueId || issue.issue_id || "UNKNOWN-ISSUE",
     ruleId: issue.ruleId || issue.rule_id || issue.id || issue.code || "UNKNOWN-RULE",
@@ -62,6 +63,8 @@ function normalizeViolation(issue) {
         normalizeConfidence(issue.evidence && issue.evidence.confidence) != null
           ? normalizeConfidence(issue.evidence && issue.evidence.confidence)
           : normalizeConfidence(issue.evidenceConfidence),
+      evidenceId: evidenceIds.length > 0 ? evidenceIds[0] : null,
+      evidenceIds,
     },
     context: normalizeContext(issue),
   };
@@ -130,9 +133,10 @@ function summarize(violations) {
   return summary;
 }
 
-function validateNormalizedViolations(violations) {
+function validateNormalizedViolations(violations, options = {}) {
   const findings = [];
   const seenIssueIds = new Set();
+  const availableEvidenceIds = options.availableEvidenceIds || null;
 
   for (const issue of violations) {
     if (!issue.issueId || issue.issueId === "UNKNOWN-ISSUE") {
@@ -153,6 +157,17 @@ function validateNormalizedViolations(violations) {
 
     if (!issue.repairPrompt) {
       findings.push(warn(`Violation '${issue.issueId}' is missing repairPrompt.`));
+    }
+
+    if (availableEvidenceIds && issue.evidence && issue.evidence.evidenceIds.length > 0) {
+      const missing = issue.evidence.evidenceIds.filter((id) => !availableEvidenceIds.has(id));
+      if (missing.length > 0) {
+        findings.push(
+          warn(
+            `Violation '${issue.issueId}' references unknown evidenceId(s): ${missing.join(", ")}.`
+          )
+        );
+      }
     }
   }
 
@@ -214,6 +229,38 @@ function inferEvidenceSource(matchedBy) {
     return "local-ast";
   }
   return "ai-only";
+}
+
+function inferEvidenceIds(issue) {
+  const values = [];
+
+  appendEvidenceId(values, issue && issue.evidenceId);
+
+  if (Array.isArray(issue && issue.evidenceIds)) {
+    for (const entry of issue.evidenceIds) {
+      appendEvidenceId(values, entry);
+    }
+  }
+
+  if (issue && issue.evidence && typeof issue.evidence === "object") {
+    appendEvidenceId(values, issue.evidence.evidenceId);
+    if (Array.isArray(issue.evidence.evidenceIds)) {
+      for (const entry of issue.evidence.evidenceIds) {
+        appendEvidenceId(values, entry);
+      }
+    }
+  }
+
+  return values;
+}
+
+function appendEvidenceId(values, value) {
+  if (typeof value !== "string" || !value.trim()) {
+    return;
+  }
+  if (!values.includes(value)) {
+    values.push(value);
+  }
 }
 
 function error(message) {

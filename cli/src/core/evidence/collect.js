@@ -91,53 +91,60 @@ async function collectEvidence({ cwd, config, rules }) {
 }
 
 function buildEvidenceRecord(rule, matches, meta) {
+  const evidenceId = buildEvidenceId(rule.id);
+  const normalizedMatches = annotateMatches(evidenceId, matches).slice(0, 10);
+
   if (rule.detect && rule.detect.regex) {
-      return {
-        ruleId: rule.id,
-        mode: "local-regex",
-        strategy: `detect.${rule.detectKind || "regex"}`,
-        confidence: 0.82,
-        matches: matches.slice(0, 10),
-        totalMatches: matches.length,
-        exceptionPatterns: meta.exceptionPatterns,
-        suppressedFileCount: meta.suppressedFileCount,
-      };
+    return {
+      evidenceId,
+      ruleId: rule.id,
+      mode: "local-regex",
+      strategy: `detect.${rule.detectKind || "regex"}`,
+      confidence: 0.82,
+      matches: normalizedMatches,
+      totalMatches: matches.length,
+      exceptionPatterns: meta.exceptionPatterns,
+      suppressedFileCount: meta.suppressedFileCount,
+    };
   }
 
   if (rule.detect && (rule.detect.import || rule.detect.include)) {
-      return {
-        ruleId: rule.id,
-        mode: "local-import",
-        strategy: `detect.${rule.detectKind || "import"}`,
-        confidence: 0.88,
-        matches: matches.slice(0, 10),
-        totalMatches: matches.length,
-        exceptionPatterns: meta.exceptionPatterns,
-        suppressedFileCount: meta.suppressedFileCount,
-      };
+    return {
+      evidenceId,
+      ruleId: rule.id,
+      mode: "local-import",
+      strategy: `detect.${rule.detectKind || "import"}`,
+      confidence: 0.88,
+      matches: normalizedMatches,
+      totalMatches: matches.length,
+      exceptionPatterns: meta.exceptionPatterns,
+      suppressedFileCount: meta.suppressedFileCount,
+    };
   }
 
   if (rule.detect && rule.detect.count) {
-      return {
-        ruleId: rule.id,
-        mode: "local-count",
-        strategy: `detect.${rule.detectKind || "count"}`,
-        confidence: 0.91,
-        matches: matches.slice(0, 10),
-        totalMatches: matches.length,
-        exceptionPatterns: meta.exceptionPatterns,
-        suppressedFileCount: meta.suppressedFileCount,
-      };
+    return {
+      evidenceId,
+      ruleId: rule.id,
+      mode: "local-count",
+      strategy: `detect.${rule.detectKind || "count"}`,
+      confidence: 0.91,
+      matches: normalizedMatches,
+      totalMatches: matches.length,
+      exceptionPatterns: meta.exceptionPatterns,
+      suppressedFileCount: meta.suppressedFileCount,
+    };
   }
 
   if (rule.detect && rule.detect.ast) {
     if (meta.astSupported) {
       return {
+        evidenceId,
         ruleId: rule.id,
         mode: "local-ast",
         strategy: meta.astStrategy || "detect.ast",
         confidence: meta.astConfidence == null ? 0.93 : meta.astConfidence,
-        matches: matches.slice(0, 10),
+        matches: normalizedMatches,
         totalMatches: matches.length,
         exceptionPatterns: meta.exceptionPatterns,
         suppressedFileCount: meta.suppressedFileCount,
@@ -145,6 +152,7 @@ function buildEvidenceRecord(rule, matches, meta) {
     }
 
     return {
+      evidenceId,
       ruleId: rule.id,
       mode: "ai-only",
       strategy: meta.astStrategy || "detect.ast",
@@ -158,6 +166,7 @@ function buildEvidenceRecord(rule, matches, meta) {
   }
 
   return {
+    evidenceId,
     ruleId: rule.id,
     mode: "ai-only",
     strategy: `detect.${rule.detectKind || "semantic"}`,
@@ -168,6 +177,17 @@ function buildEvidenceRecord(rule, matches, meta) {
     exceptionPatterns: meta.exceptionPatterns,
     suppressedFileCount: meta.suppressedFileCount,
   };
+}
+
+function buildEvidenceId(ruleId) {
+  return `evidence:${ruleId}`;
+}
+
+function annotateMatches(evidenceId, matches) {
+  return matches.map((match, index) => ({
+    matchId: `${evidenceId}:match:${index + 1}`,
+    ...match,
+  }));
 }
 
 function resolveExceptionPatterns(config, ruleId) {

@@ -229,6 +229,7 @@ By default, `ai-law audit` writes:
 - `.ai-rules/cache/ai-rule-report.template.json`
 
 Use the generated prompt with your AI tool, then save the AI result as `ai-rule-report.json` in the project root.
+The cached audit context now includes stable `evidenceId` / `matchId` values so AI reports can reference concrete local evidence records.
 
 `--dump-context` forces a fresh write of `.ai-rules/cache/audit-context.json`.
 `--summary` prints enabled-rule counts, local-vs-AI coverage, suppressed files, and configured thresholds.
@@ -254,6 +255,7 @@ This command normalizes legacy or drifted report shapes into a stable structure 
 - missing `ruleId`
 - duplicate `issueId`
 - invalid `severity`
+- unknown `evidenceId` / `matchId` references when `.ai-rules/cache/audit-context.json` is available
 
 You can inspect the normalized report with:
 
@@ -270,6 +272,12 @@ ai-law validate-report --json
 - rule intent / requirement / fix guidance
 - context assets
 - report evidence and snippets when present
+
+When you run `ai-law fix --all`, issues are ordered deterministically:
+
+- `FATAL` before `WARN` before `INFO`
+- then by file and line
+- `--group-by-rule` keeps grouping while preserving stable ordering between groups
 
 Examples:
 

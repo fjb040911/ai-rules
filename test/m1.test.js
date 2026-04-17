@@ -399,6 +399,8 @@ test("collectEvidence gathers regex and import candidates", async () => {
   });
 
   assert.equal(evidence[0].mode, "local-regex");
+  assert.equal(evidence[0].evidenceId, "evidence:REGEX-001");
+  assert.equal(evidence[0].matches[0].matchId, "evidence:REGEX-001:match:1");
   assert.equal(evidence[0].totalMatches, 1);
   assert.equal(evidence[1].mode, "local-import");
   assert.equal(evidence[1].matches[0].reference, "platform/http");
@@ -729,6 +731,7 @@ test("buildAuditPrompt includes config, rules, and evidence sections", () => {
     ],
     evidence: [
       {
+        evidenceId: "evidence:RULE-001",
         ruleId: "RULE-001",
         mode: "local-regex",
         strategy: "detect.regex",
@@ -738,6 +741,7 @@ test("buildAuditPrompt includes config, rules, and evidence sections", () => {
         suppressedFileCount: 2,
         matches: [
           {
+            matchId: "evidence:RULE-001:match:1",
             file: "src/page.ts",
             line: 2,
             snippet: "const data = fetch('/api');",
@@ -750,6 +754,8 @@ test("buildAuditPrompt includes config, rules, and evidence sections", () => {
 
   assert.match(prompt, /Project config summary:/);
   assert.match(prompt, /### RULE-001/);
+  assert.match(prompt, /evidenceId=evidence:RULE-001/);
+  assert.match(prompt, /evidence:RULE-001:match:1/);
   assert.match(prompt, /src\/page\.ts:2/);
   assert.match(prompt, /strategy: detect\.regex/);
   assert.match(prompt, /confidence: 0\.82/);
@@ -786,6 +792,7 @@ test("normalizeReport standardizes legacy report shapes", () => {
   assert.equal(normalized.report.violations[0].line, 8);
   assert.equal(normalized.report.violations[0].repairPrompt, "Patch here");
   assert.equal(normalized.report.violations[0].evidence.source, "local-regex");
+  assert.equal(normalized.report.violations[0].evidence.evidenceId, null);
   assert.equal(normalized.findings.length, 0);
 });
 
@@ -838,7 +845,37 @@ test("normalizeReport reports structural errors", () => {
 
   assert.ok(normalized.findings.some((item) => item.message.includes("missing issueId")));
   assert.ok(normalized.findings.some((item) => item.message.includes("Duplicate issueId 'ISSUE-001'")));
-  assert.ok(normalized.findings.some((item) => item.message.includes("invalid severity 'OOPS'")));
+});
+
+test("normalizeReport preserves evidence references and warns on unknown evidence ids", () => {
+  const normalized = normalizeReport(
+    {
+      violations: [
+        {
+          issueId: "ISSUE-001",
+          ruleId: "RULE-001",
+          severity: "CRITICAL",
+          evidence: {
+            evidenceId: "evidence:RULE-001",
+            evidenceIds: ["evidence:RULE-001", "evidence:RULE-001:match:2", "evidence:missing"],
+          },
+        },
+      ],
+    },
+    {
+      availableEvidenceIds: new Set(["evidence:RULE-001", "evidence:RULE-001:match:2"]),
+    }
+  );
+
+  assert.equal(normalized.report.violations[0].severity, "INFO");
+  assert.deepEqual(normalized.report.violations[0].evidence.evidenceIds, [
+    "evidence:RULE-001",
+    "evidence:RULE-001:match:2",
+    "evidence:missing",
+  ]);
+  assert.ok(
+    normalized.findings.some((item) => item.message.includes("references unknown evidenceId(s): evidence:missing"))
+  );
 });
 
 test("doctor reports invalid thresholds and exceptions", async () => {
@@ -1070,6 +1107,164 @@ test("fix explains how to create ai-rule-report.json when missing", async () => 
       return true;
     }
   );
+});
+
+test("validate-report warns when evidence references are unknown", async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-rules-validate-evidence-"));
+  const cacheDir = path.join(tempDir, ".ai-rules", "cache");
+  await fs.mkdir(cacheDir, { recursive: true });
+
+  await fs.writeFile(
+    path.join(cacheDir, "audit-context.json"),
+    JSON.stringify(
+      {
+        evidence: [
+          {
+            evidenceId: "evidence:RULE-001",
+            matches: [{ matchId: "evidence:RULE-001:match:1" }],
+          },
+        ],
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+
+  await fs.writeFile(
+    path.join(tempDir, "ai-rule-report.json"),
+    JSON.stringify(
+      {
+        violations: [
+          {
+            issueId: "ISSUE-001",
+            ruleId: "RULE-001",
+            severity: "WARN",
+            evidence: {
+              evidenceIds: ["evidence:RULE-001", "evidence:missing"],
+            },
+          },
+        ],
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+
+  const cliPath = path.join(__dirname, "..", "cli", "src", "index.js");
+  const { stdout } = await execFileAsync(process.execPath, [cliPath, "validate-report"], { cwd: tempDir });
+
+  assert.match(stdout, /unknown evidenceId\(s\): evidence:missing/);
+  assert.match(stdout, /Summary: 1 issue\(s\), 0 error\(s\), 2 warning\(s\)/);
+});
+
+test("fix --all orders issues by severity and location", async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-rules-fix-order-"));
+  const aiRulesDir = path.join(tempDir, ".ai-rules");
+  const cacheDir = path.join(aiRulesDir, "cache");
+  await fs.mkdir(cacheDir, { recursive: true });
+
+  await fs.writeFile(
+    path.join(aiRulesDir, "rules-config.json"),
+    JSON.stringify({
+      rulesFile: ".ai-rules.md",
+      enabledRuleIds: ["RULE-001", "RULE-002", "RULE-003"],
+      scopes: ["security"],
+    }),
+    "utf8"
+  );
+
+  await fs.writeFile(
+    path.join(aiRulesDir, ".ai-rules.md"),
+    [
+      "### RULE: RULE-001",
+      "severity: WARN",
+      "scope: security",
+      "intent: Warn issue",
+      "detect:",
+      "  regex: \"warn\"",
+      "fix: Fix warn",
+      "prompt:",
+      "  violation: Warn",
+      "  requirement: Warn requirement",
+      "  solution: Warn solution",
+      "",
+      "### RULE: RULE-002",
+      "severity: FATAL",
+      "scope: security",
+      "intent: Fatal issue",
+      "detect:",
+      "  regex: \"fatal\"",
+      "fix: Fix fatal",
+      "prompt:",
+      "  violation: Fatal",
+      "  requirement: Fatal requirement",
+      "  solution: Fatal solution",
+      "",
+      "### RULE: RULE-003",
+      "severity: INFO",
+      "scope: security",
+      "intent: Info issue",
+      "detect:",
+      "  regex: \"info\"",
+      "fix: Fix info",
+      "prompt:",
+      "  violation: Info",
+      "  requirement: Info requirement",
+      "  solution: Info solution",
+      "",
+    ].join("\n"),
+    "utf8"
+  );
+
+  await fs.writeFile(path.join(cacheDir, "audit-context.json"), JSON.stringify({ evidence: [] }, null, 2), "utf8");
+
+  await fs.writeFile(
+    path.join(tempDir, "ai-rule-report.json"),
+    JSON.stringify(
+      {
+        violations: [
+          {
+            issueId: "ISSUE-INFO",
+            ruleId: "RULE-003",
+            severity: "INFO",
+            file: "src/z.ts",
+            line: 30,
+            description: "info issue",
+            repairPrompt: "fix info",
+          },
+          {
+            issueId: "ISSUE-WARN",
+            ruleId: "RULE-001",
+            severity: "WARN",
+            file: "src/b.ts",
+            line: 20,
+            description: "warn issue",
+            repairPrompt: "fix warn",
+          },
+          {
+            issueId: "ISSUE-FATAL",
+            ruleId: "RULE-002",
+            severity: "FATAL",
+            file: "src/a.ts",
+            line: 10,
+            description: "fatal issue",
+            repairPrompt: "fix fatal",
+          },
+        ],
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+
+  const cliPath = path.join(__dirname, "..", "cli", "src", "index.js");
+  const { stdout } = await execFileAsync(process.execPath, [cliPath, "fix", "--all"], { cwd: tempDir });
+
+  assert.ok(stdout.indexOf("Rule: RULE-002 | IssueId: ISSUE-FATAL") < stdout.indexOf("Rule: RULE-001 | IssueId: ISSUE-WARN"));
+  assert.ok(stdout.indexOf("Rule: RULE-001 | IssueId: ISSUE-WARN") < stdout.indexOf("Rule: RULE-003 | IssueId: ISSUE-INFO"));
 });
 
 

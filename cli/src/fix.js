@@ -41,7 +41,8 @@ async function runFix(argv) {
     return;
   }
 
-  const normalized = normalizeReport(rawReport);
+  const availableEvidenceIds = await maybeLoadAvailableEvidenceIds(cwd);
+  const normalized = normalizeReport(rawReport, { availableEvidenceIds });
   if (normalized.findings.some((item) => item.level === "error")) {
     for (const finding of normalized.findings) {
       const prefix = finding.level === "error" ? "ERROR" : "WARN";
@@ -66,7 +67,7 @@ async function runFix(argv) {
     const issueRuleId = ruleId || issue.ruleId || "UNKNOWN-RULE";
     prompt = buildAggregateRulePrompt([issue], issueRuleId, projectRules);
   } else if (all) {
-    const issues = findAllIssues(report);
+    const issues = sortIssues(findAllIssues(report));
     if (!issues.length) {
       process.stderr.write("No issues found in report.\n");
       process.exitCode = 1;
@@ -135,6 +136,7 @@ function findAllIssues(report) {
 }
 
 function buildAggregateRulePrompt(issues, ruleId, projectRules) {
+  const orderedIssues = sortIssues(issues);
   const rule = getRule(projectRules, ruleId);
   const lines = [
     `You need to fix violations of rule ${ruleId}.`,
@@ -147,7 +149,7 @@ function buildAggregateRulePrompt(issues, ruleId, projectRules) {
   appendRuleContext(lines, rule, ruleId);
   lines.push("", "Violations:");
 
-  for (const issue of issues) {
+  for (const issue of orderedIssues) {
     const location = formatLocation(issue);
     const prompt = issue.repairPrompt || buildFallbackPrompt(issue, ruleId, rule);
 
@@ -165,6 +167,9 @@ function buildAggregateRulePrompt(issues, ruleId, projectRules) {
     }
     if (issue.evidence && (issue.evidence.source || issue.evidence.matchedBy)) {
       lines.push(`  Evidence: source=${issue.evidence.source || "unknown"}, matchedBy=${issue.evidence.matchedBy || "unknown"}`);
+      if (issue.evidence.evidenceIds && issue.evidence.evidenceIds.length > 0) {
+        lines.push(`  Evidence refs: ${issue.evidence.evidenceIds.join(", ")}`);
+      }
     }
     lines.push("  Repair prompt:");
     lines.push(indentBlock(prompt, 4));
@@ -175,11 +180,15 @@ function buildAggregateRulePrompt(issues, ruleId, projectRules) {
 
 function buildAggregateAllPrompt(issues, projectRules, groupByRule) {
   if (groupByRule) {
-    return Object.entries(groupIssuesByRule(issues))
+    return Object.entries(groupIssuesByRule(sortIssues(issues)))
+      .sort(([leftRuleId, leftIssues], [rightRuleId, rightIssues]) => {
+        return compareIssues(leftIssues[0], rightIssues[0]) || leftRuleId.localeCompare(rightRuleId);
+      })
       .map(([ruleId, group]) => buildAggregateRulePrompt(group, ruleId, projectRules))
       .join("\n\n");
   }
 
+  const orderedIssues = sortIssues(issues);
   const lines = [
     "You have multiple rule violations in this report.",
     "Task: Fix all violations across all rules with minimal, safe edits.",
@@ -188,7 +197,7 @@ function buildAggregateAllPrompt(issues, projectRules, groupByRule) {
     "Violations:",
   ];
 
-  for (const issue of issues) {
+  for (const issue of orderedIssues) {
     const rule = getRule(projectRules, issue.ruleId);
     const prompt = issue.repairPrompt || buildFallbackPrompt(issue, issue.ruleId, rule);
     const location = formatLocation(issue);
@@ -201,6 +210,9 @@ function buildAggregateAllPrompt(issues, projectRules, groupByRule) {
     lines.push(`  Suggested direction: ${issue.fixSuggestion || fallbackSuggestion(rule)}`);
     if (issue.snippet) {
       lines.push(`  Snippet: ${issue.snippet}`);
+    }
+    if (issue.evidence && issue.evidence.evidenceIds && issue.evidence.evidenceIds.length > 0) {
+      lines.push(`  Evidence refs: ${issue.evidence.evidenceIds.join(", ")}`);
     }
     lines.push("  Repair prompt:");
     lines.push(indentBlock(prompt, 4));
@@ -297,6 +309,30 @@ function groupIssuesByRule(issues) {
   return groups;
 }
 
+function sortIssues(issues) {
+  return [...issues].sort(compareIssues);
+}
+
+function compareIssues(left, right) {
+  return (
+    severityRank(left.severity) - severityRank(right.severity) ||
+    String(left.file || "").localeCompare(String(right.file || "")) ||
+    ((left.line || Number.MAX_SAFE_INTEGER) - (right.line || Number.MAX_SAFE_INTEGER)) ||
+    String(left.ruleId || "").localeCompare(String(right.ruleId || "")) ||
+    String(left.issueId || "").localeCompare(String(right.issueId || ""))
+  );
+}
+
+function severityRank(severity) {
+  if (severity === "FATAL") {
+    return 0;
+  }
+  if (severity === "WARN") {
+    return 1;
+  }
+  return 2;
+}
+
 async function maybeLoadProjectRules(cwd) {
   const configPath = path.join(cwd, ".ai-rules", "rules-config.json");
   const exists = await fileExists(configPath);
@@ -311,6 +347,32 @@ async function maybeLoadProjectRules(cwd) {
     return new Map(rules.map((rule) => [rule.id, rule]));
   } catch {
     return new Map();
+  }
+}
+
+async function maybeLoadAvailableEvidenceIds(cwd) {
+  const contextPath = path.join(cwd, ".ai-rules", "cache", "audit-context.json");
+  const exists = await fileExists(contextPath);
+  if (!exists) {
+    return null;
+  }
+
+  try {
+    const context = await readJson(contextPath);
+    const values = new Set();
+    for (const entry of context.evidence || []) {
+      if (entry && typeof entry.evidenceId === "string") {
+        values.add(entry.evidenceId);
+      }
+      for (const match of entry.matches || []) {
+        if (match && typeof match.matchId === "string") {
+          values.add(match.matchId);
+        }
+      }
+    }
+    return values;
+  } catch {
+    return null;
   }
 }
 
