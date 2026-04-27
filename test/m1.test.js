@@ -15,6 +15,7 @@ const {
 const { resolveAstConfig } = require("../cli/src/core/config/resolve-ast-config");
 const { parseRules } = require("../cli/src/core/rules/parse-rules");
 const { resolveRulePaths } = require("../cli/src/core/rules/resolve-rules");
+const { compileRulesToIR } = require("../cli/src/core/rules/compile-rule-ir");
 const { validateRules } = require("../cli/src/core/rules/validate-rules");
 const { collectEvidence } = require("../cli/src/core/evidence/collect");
 const { buildAuditPrompt } = require("../cli/src/core/prompt/build-audit-prompt");
@@ -359,6 +360,40 @@ test("validateRules reports missing enabled rules and unknown scopes", () => {
       "enabledRuleIds references missing rule 'RULE-404'.",
     ]
   );
+});
+
+test("compileRulesToIR builds executable rule metadata", () => {
+  const ruleIR = compileRulesToIR({
+    config: {
+      stack: "react-ts",
+      enabledRuleIds: ["RULE-001"],
+    },
+    rules: [
+      {
+        id: "RULE-001",
+        severity: "WARN",
+        scope: "ui",
+        intent: "Do not fetch in UI",
+        fix: "Move network logic to service layer",
+        detectKind: "regex",
+        detect: { regex: "fetch\\(", where: "filePath in src/**" },
+        prompt: {
+          violation: "Found fetch",
+          requirement: "UI must not fetch directly",
+          solution: "Use a service",
+        },
+        context: ["src/services"],
+      },
+    ],
+  });
+
+  assert.equal(ruleIR.length, 1);
+  assert.equal(ruleIR[0].id, "RULE-001");
+  assert.equal(ruleIR[0].enabled, true);
+  assert.equal(ruleIR[0].metadata.stack, "react-ts");
+  assert.equal(ruleIR[0].execution.phase, "post-generation-validation");
+  assert.equal(ruleIR[0].validator.mode, "local");
+  assert.equal(ruleIR[0].repair.requirement, "UI must not fetch directly");
 });
 
 test("collectEvidence gathers regex and import candidates", async () => {
@@ -1082,13 +1117,18 @@ test("audit supports summary and dry-run output", async () => {
   assert.match(dryRun.stdout, /REGEX-\*: fixtures\/\*\*/);
 
   const contextPath = path.join(aiRulesDir, "cache", "audit-context.json");
+  const ruleIrPath = path.join(aiRulesDir, "cache", "rule-ir.json");
   const templatePath = path.join(aiRulesDir, "cache", "ai-rule-report.template.json");
   const contextExists = await fs.readFile(contextPath, "utf8");
+  const ruleIrExists = JSON.parse(await fs.readFile(ruleIrPath, "utf8"));
   const templateExists = JSON.parse(await fs.readFile(templatePath, "utf8"));
 
   assert.match(summary.stderr || "", /audit-context\.json/);
+  assert.match(summary.stderr || "", /rule-ir\.json/);
   assert.match(summary.stderr || "", /ai-rule-report\.template\.json/);
   assert.ok(contextExists.includes("\"stack\": \"python-base\""));
+  assert.equal(ruleIrExists.stack, "python-base");
+  assert.equal(ruleIrExists.rules.length, 3);
   assert.deepEqual(templateExists.violations, []);
 });
 

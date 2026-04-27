@@ -7,6 +7,7 @@ const { validateConfig } = require("./core/config/validate-config");
 const { resolveAstConfig } = require("./core/config/resolve-ast-config");
 const { parseRules } = require("./core/rules/parse-rules");
 const { resolveRulePaths } = require("./core/rules/resolve-rules");
+const { compileRulesToIR } = require("./core/rules/compile-rule-ir");
 const { validateRules } = require("./core/rules/validate-rules");
 const { collectEvidence } = require("./core/evidence/collect");
 const { buildAuditPrompt } = require("./core/prompt/build-audit-prompt");
@@ -48,7 +49,7 @@ async function runAudit(argv) {
 
   const prompt = buildAuditPrompt({
     config: context.config,
-    rules: context.rules,
+    rules: context.ruleIR,
     evidence: context.evidence,
     localeMap,
     reportSchemaText: getReportSchemaText(),
@@ -94,13 +95,14 @@ async function buildAuditContext({ cwd, localeMap }) {
   const rulesFile = config.rulesFile || ".ai-rules.md";
   const rulesPath = path.join(cwd, ".ai-rules", rulesFile);
   const rules = resolveRulePaths(await parseRules(rulesPath), config);
+  const ruleIR = compileRulesToIR({ config, rules });
   const findings = [
     ...(await validateConfig({ config, cwd, configDir: path.join(cwd, ".ai-rules") })),
     ...validateRules({ rules, config }),
   ];
   const evidence = await collectEvidence({ cwd, config, rules });
-  const summary = buildAuditSummary({ config, rules, evidence });
-  const dryRun = buildDryRun({ config, rules, evidence });
+  const summary = buildAuditSummary({ config, ruleIR, evidence });
+  const dryRun = buildDryRun({ config, ruleIR, evidence });
 
   return {
     version: readCliVersion(),
@@ -108,6 +110,7 @@ async function buildAuditContext({ cwd, localeMap }) {
     locale: inferLocale(config, localeMap),
     config,
     rules,
+    ruleIR,
     evidence,
     findings,
     summary,
@@ -137,15 +140,35 @@ async function writeAuditContext(cwd, context) {
 async function writeAuditArtifacts(cwd, context, { forceContextWrite }) {
   await writeAuditContext(cwd, context);
   await writeReportTemplate(cwd, context);
+  await writeRuleIR(cwd, context);
 
   if (!forceContextWrite) {
     process.stderr.write(
-      "Wrote .ai-rules/cache/audit-context.json and .ai-rules/cache/ai-rule-report.template.json\n"
+      "Wrote .ai-rules/cache/audit-context.json, .ai-rules/cache/rule-ir.json and .ai-rules/cache/ai-rule-report.template.json\n"
     );
     process.stderr.write(
       "After your AI returns the audit result, save it as ai-rule-report.json and run: ai-law validate-report\n"
     );
   }
+}
+
+async function writeRuleIR(cwd, context) {
+  const cacheDir = path.join(cwd, ".ai-rules", "cache");
+  await fs.mkdir(cacheDir, { recursive: true });
+  await fs.writeFile(
+    path.join(cacheDir, "rule-ir.json"),
+    JSON.stringify(
+      {
+        version: context.version,
+        generatedAt: context.generatedAt,
+        stack: context.config && context.config.stack,
+        rules: context.ruleIR || [],
+      },
+      null,
+      2
+    ) + "\n",
+    "utf8"
+  );
 }
 
 async function writeReportTemplate(cwd, context) {
@@ -163,9 +186,9 @@ function inferLocale(config) {
   return (config.i18n && config.i18n.defaultLocale) || "en";
 }
 
-function buildAuditSummary({ config, rules, evidence }) {
+function buildAuditSummary({ config, ruleIR, evidence }) {
   const enabledRules = new Set(config.enabledRuleIds || []);
-  const activeRules = rules.filter((rule) => enabledRules.has(rule.id));
+  const activeRules = ruleIR.filter((rule) => enabledRules.has(rule.id));
   const relevantEvidence = evidence.filter((item) => enabledRules.has(item.ruleId));
   const localEvidenceItems = relevantEvidence.filter((item) => item.mode !== "ai-only");
 
@@ -180,9 +203,9 @@ function buildAuditSummary({ config, rules, evidence }) {
   };
 }
 
-function buildDryRun({ config, rules, evidence }) {
+function buildDryRun({ config, ruleIR, evidence }) {
   const enabledRules = new Set(config.enabledRuleIds || []);
-  const activeRules = rules.filter((rule) => enabledRules.has(rule.id));
+  const activeRules = ruleIR.filter((rule) => enabledRules.has(rule.id));
   const evidenceByRule = new Map(evidence.map((item) => [item.ruleId, item]));
 
   return {

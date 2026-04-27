@@ -5,6 +5,7 @@ const { writeOutput } = require("./utils/output");
 const { loadConfig } = require("./core/config/load-config");
 const { parseRules } = require("./core/rules/parse-rules");
 const { resolveRulePaths } = require("./core/rules/resolve-rules");
+const { compileRulesToIR } = require("./core/rules/compile-rule-ir");
 const { normalizeReport } = require("./core/report/normalize");
 
 async function runFix(argv) {
@@ -344,7 +345,8 @@ async function maybeLoadProjectRules(cwd) {
     const config = await loadConfig(configPath);
     const rulesPath = path.join(cwd, ".ai-rules", config.rulesFile || ".ai-rules.md");
     const rules = resolveRulePaths(await parseRules(rulesPath), config);
-    return new Map(rules.map((rule) => [rule.id, rule]));
+    const ruleIR = compileRulesToIR({ config, rules });
+    return new Map(ruleIR.map((rule) => [rule.id, rule]));
   } catch {
     return new Map();
   }
