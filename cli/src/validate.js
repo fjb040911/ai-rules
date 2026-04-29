@@ -2,6 +2,7 @@ const path = require("path");
 const fs = require("fs/promises");
 const { readJson } = require("./utils/fs");
 const { normalizeReport } = require("./core/report/normalize");
+const { loadValidatorArtifacts } = require("./core/validator/load-validator-artifacts");
 
 async function runValidateReport(argv) {
   const cwd = process.cwd();
@@ -24,8 +25,8 @@ async function runValidateReport(argv) {
     return;
   }
 
-  const availableEvidenceIds = await maybeLoadAvailableEvidenceIds(cwd);
-  const normalized = normalizeReport(rawReport, { availableEvidenceIds });
+  const validatorArtifacts = await loadValidatorArtifacts({ cwd });
+  const normalized = normalizeReport(rawReport, validatorArtifacts);
 
   if (outputJson) {
     process.stdout.write(JSON.stringify(normalized.report, null, 2) + "\n");
@@ -66,29 +67,3 @@ async function fileExists(targetPath) {
 module.exports = {
   runValidateReport,
 };
-
-async function maybeLoadAvailableEvidenceIds(cwd) {
-  const contextPath = path.join(cwd, ".ai-rules", "cache", "audit-context.json");
-  const exists = await fileExists(contextPath);
-  if (!exists) {
-    return null;
-  }
-
-  try {
-    const context = await readJson(contextPath);
-    const values = new Set();
-    for (const entry of context.evidence || []) {
-      if (entry && typeof entry.evidenceId === "string") {
-        values.add(entry.evidenceId);
-      }
-      for (const match of entry.matches || []) {
-        if (match && typeof match.matchId === "string") {
-          values.add(match.matchId);
-        }
-      }
-    }
-    return values;
-  } catch {
-    return null;
-  }
-}

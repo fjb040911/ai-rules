@@ -1,0 +1,8 @@
+{
+  "pathAliases": {
+    "@transport": "src/(controllers|graphql|resolvers)",
+    "@controllers": "src/controllers",
+    "@services": "src/services",
+    "@repositories": "src/(repositories|entities|infra)"
+  }
+}

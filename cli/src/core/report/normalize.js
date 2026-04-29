@@ -137,6 +137,8 @@ function validateNormalizedViolations(violations, options = {}) {
   const findings = [];
   const seenIssueIds = new Set();
   const availableEvidenceIds = options.availableEvidenceIds || null;
+  const availableRuleIds = options.availableRuleIds || null;
+  const validatorEvidenceById = options.validatorEvidenceById || null;
 
   for (const issue of violations) {
     if (!issue.issueId || issue.issueId === "UNKNOWN-ISSUE") {
@@ -149,6 +151,8 @@ function validateNormalizedViolations(violations, options = {}) {
 
     if (!issue.ruleId || issue.ruleId === "UNKNOWN-RULE") {
       findings.push(error(`Violation '${issue.issueId}' is missing ruleId.`));
+    } else if (availableRuleIds && !availableRuleIds.has(issue.ruleId)) {
+      findings.push(warn(`Violation '${issue.issueId}' references unknown ruleId '${issue.ruleId}'.`));
     }
 
     if (!["FATAL", "WARN", "INFO"].includes(issue.severity)) {
@@ -165,6 +169,23 @@ function validateNormalizedViolations(violations, options = {}) {
         findings.push(
           warn(
             `Violation '${issue.issueId}' references unknown evidenceId(s): ${missing.join(", ")}.`
+          )
+        );
+      }
+    }
+
+    if (validatorEvidenceById && issue.evidence && issue.evidence.evidenceIds.length > 0) {
+      const mismatched = [];
+      for (const evidenceId of issue.evidence.evidenceIds) {
+        const reference = validatorEvidenceById.get(evidenceId);
+        if (reference && reference.ruleId && reference.ruleId !== issue.ruleId) {
+          mismatched.push(`${evidenceId} -> ${reference.ruleId}`);
+        }
+      }
+      if (mismatched.length > 0) {
+        findings.push(
+          warn(
+            `Violation '${issue.issueId}' references evidence that belongs to a different rule: ${mismatched.join(", ")}.`
           )
         );
       }

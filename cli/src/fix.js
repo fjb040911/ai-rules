@@ -2,11 +2,9 @@ const path = require("path");
 const fs = require("fs/promises");
 const { readJson } = require("./utils/fs");
 const { writeOutput } = require("./utils/output");
-const { loadConfig } = require("./core/config/load-config");
-const { parseRules } = require("./core/rules/parse-rules");
-const { resolveRulePaths } = require("./core/rules/resolve-rules");
-const { compileRulesToIR } = require("./core/rules/compile-rule-ir");
+const { loadRuleContext } = require("./core/rules/load-rule-context");
 const { normalizeReport } = require("./core/report/normalize");
+const { loadValidatorArtifacts } = require("./core/validator/load-validator-artifacts");
 
 async function runFix(argv) {
   const issueId = parseIssueIdArg(argv);
@@ -42,8 +40,8 @@ async function runFix(argv) {
     return;
   }
 
-  const availableEvidenceIds = await maybeLoadAvailableEvidenceIds(cwd);
-  const normalized = normalizeReport(rawReport, { availableEvidenceIds });
+  const validatorArtifacts = await loadValidatorArtifacts({ cwd });
+  const normalized = normalizeReport(rawReport, validatorArtifacts);
   if (normalized.findings.some((item) => item.level === "error")) {
     for (const finding of normalized.findings) {
       const prefix = finding.level === "error" ? "ERROR" : "WARN";
@@ -342,39 +340,10 @@ async function maybeLoadProjectRules(cwd) {
   }
 
   try {
-    const config = await loadConfig(configPath);
-    const rulesPath = path.join(cwd, ".ai-rules", config.rulesFile || ".ai-rules.md");
-    const rules = resolveRulePaths(await parseRules(rulesPath), config);
-    const ruleIR = compileRulesToIR({ config, rules });
+    const { ruleIR } = await loadRuleContext({ cwd, configPath });
     return new Map(ruleIR.map((rule) => [rule.id, rule]));
   } catch {
     return new Map();
-  }
-}
-
-async function maybeLoadAvailableEvidenceIds(cwd) {
-  const contextPath = path.join(cwd, ".ai-rules", "cache", "audit-context.json");
-  const exists = await fileExists(contextPath);
-  if (!exists) {
-    return null;
-  }
-
-  try {
-    const context = await readJson(contextPath);
-    const values = new Set();
-    for (const entry of context.evidence || []) {
-      if (entry && typeof entry.evidenceId === "string") {
-        values.add(entry.evidenceId);
-      }
-      for (const match of entry.matches || []) {
-        if (match && typeof match.matchId === "string") {
-          values.add(match.matchId);
-        }
-      }
-    }
-    return values;
-  } catch {
-    return null;
   }
 }
 

@@ -1,0 +1,8 @@
+{
+  "pathAliases": {
+    "@transport": "src/(routes|controllers|handlers|api)",
+    "@routes": "src/routes",
+    "@middleware": "src/middleware",
+    "@services": "src/services"
+  }
+}

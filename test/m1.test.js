@@ -14,13 +14,16 @@ const {
 } = require("../cli/src/core/config/validate-config");
 const { resolveAstConfig } = require("../cli/src/core/config/resolve-ast-config");
 const { parseRules } = require("../cli/src/core/rules/parse-rules");
+const { loadRuleContext } = require("../cli/src/core/rules/load-rule-context");
 const { resolveRulePaths } = require("../cli/src/core/rules/resolve-rules");
 const { compileRulesToIR } = require("../cli/src/core/rules/compile-rule-ir");
 const { validateRules } = require("../cli/src/core/rules/validate-rules");
 const { collectEvidence } = require("../cli/src/core/evidence/collect");
+const { runRuleValidator } = require("../cli/src/core/validator/run-rule-validator");
 const { buildAuditPrompt } = require("../cli/src/core/prompt/build-audit-prompt");
 const { normalizeReport } = require("../cli/src/core/report/normalize");
 const { readLocaleMap } = require("../cli/src/utils/templates");
+const { resolveProvider, buildSlashFileContent } = require("../cli/src/setup");
 
 const execFileAsync = promisify(execFile);
 
@@ -266,6 +269,32 @@ test("readLocaleMap supports additional locales with English fallback", async ()
   }
 });
 
+test("Claude Code slash files drive the local audit and fix workflow", async () => {
+  const localeMap = await readLocaleMap("en");
+  const provider = resolveProvider("claude-code");
+
+  assert.equal(provider.supportsSlash, true);
+
+  const auditContent = buildSlashFileContent(localeMap, provider, "audit", "en");
+  const fixContent = buildSlashFileContent(localeMap, provider, "fix", "en");
+  const logicContent = buildSlashFileContent(localeMap, provider, "logic", "en");
+
+  assert.match(auditContent, /allowed-tools: Bash\(ai-law audit:\*\), Read, Write, Edit, MultiEdit/);
+  assert.match(auditContent, /!`ai-law audit --locale en`/);
+  assert.match(auditContent, /@\.ai-rules\/cache\/audit-context\.json/);
+  assert.match(auditContent, /@ai-rule-report\.json/);
+
+  assert.match(fixContent, /argument-hint: <ISSUE_ID>/);
+  assert.match(fixContent, /!`ai-law validate-report`/);
+  assert.match(fixContent, /!`ai-law fix --issueId \$ARGUMENTS`/);
+  assert.match(fixContent, /If `\$ARGUMENTS` is empty, stop and ask for a concrete issue ID/);
+
+  assert.match(logicContent, /allowed-tools: Bash\(ai-law inspect-logic:\*\), Read, Write, Edit, MultiEdit/);
+  assert.match(logicContent, /!`ai-law inspect-logic --locale en`/);
+  assert.match(logicContent, /@\.ai-rules\/cache\/logic-audit-context\.json/);
+  assert.match(logicContent, /@ai-logic-report\.json/);
+});
+
 
 test("parseRules resolves extends and preserves rule fields", async () => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-rules-rules-"));
@@ -394,6 +423,107 @@ test("compileRulesToIR builds executable rule metadata", () => {
   assert.equal(ruleIR[0].execution.phase, "post-generation-validation");
   assert.equal(ruleIR[0].validator.mode, "local");
   assert.equal(ruleIR[0].repair.requirement, "UI must not fetch directly");
+});
+
+test("loadRuleContext resolves config, rules, and rule IR together", async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-rules-load-context-"));
+  await fs.mkdir(path.join(tempDir, ".ai-rules"), { recursive: true });
+
+  await fs.writeFile(
+    path.join(tempDir, ".ai-rules", "rules-config.json"),
+    JSON.stringify({
+      stack: "frontend-base",
+      scopes: ["architecture"],
+      enabledRuleIds: ["ARCH-101"],
+      pathAliases: {
+        "@ui": "src/components",
+      },
+    }),
+    "utf8"
+  );
+
+  await fs.writeFile(
+    path.join(tempDir, ".ai-rules", ".ai-rules.md"),
+    [
+      "### RULE: ARCH-101",
+      "severity: FATAL",
+      "scope: architecture",
+      "intent: UI should not fetch directly.",
+      "detect:",
+      "  semantic: direct fetch from UI",
+      "  where: filePath in @ui/**",
+      "fix: Move requests into the service layer.",
+      "prompt:",
+      "  violation: UI component directly performs network access.",
+      "  requirement: UI must delegate data access.",
+      "  solution: Introduce a service boundary.",
+      "context:",
+      "  - @ui",
+      "",
+    ].join("\n"),
+    "utf8"
+  );
+
+  const context = await loadRuleContext({ cwd: tempDir });
+
+  assert.equal(context.config.stack, "frontend-base");
+  assert.equal(context.rulesPath, path.join(tempDir, ".ai-rules", ".ai-rules.md"));
+  assert.equal(context.rules[0].detect.where, "filePath in src/components/**");
+  assert.deepEqual(context.rules[0].context, ["src/components"]);
+  assert.equal(context.ruleIR[0].id, "ARCH-101");
+  assert.equal(context.ruleIR[0].metadata.enabled, true);
+});
+
+test("runRuleValidator summarizes local evidence and ai review decisions", async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-rules-validator-"));
+  await fs.mkdir(path.join(tempDir, "src"), { recursive: true });
+  await fs.writeFile(
+    path.join(tempDir, "src", "view.js"),
+    "export function View(items) { return items.map((item, index) => <li key={index}>{item.name}</li>); }\n",
+    "utf8"
+  );
+
+  const config = {
+    stack: "react-js",
+    enabledRuleIds: ["REACT-303", "ARCH-999"],
+    detectOptions: { include: ["src/**/*.js"], exclude: [] },
+    resolvedAstConfig: {
+      provider: "babel",
+      target: "react",
+      parserOptions: { sourceType: "module", plugins: ["jsx"] },
+    },
+  };
+
+  const rules = [
+    {
+      id: "REACT-303",
+      detectKind: "ast",
+      detect: { ast: "react/no-index-key" },
+    },
+    {
+      id: "ARCH-999",
+      detectKind: "semantic",
+      detect: { semantic: "needs AI judgment" },
+    },
+  ];
+  const ruleIR = compileRulesToIR({ config, rules });
+
+  const validator = await runRuleValidator({ cwd: tempDir, config, rules, ruleIR });
+
+  assert.equal(validator.version, "0.1");
+  assert.equal(validator.summary.localEvidenceRules, 1);
+  assert.equal(validator.summary.aiReviewRules, 1);
+  assert.equal(validator.summary.validatorViolationCount, 1);
+  assert.equal(validator.results[0].decision, "local-evidence");
+  assert.equal(validator.results[0].evidenceMode, "local-ast");
+  assert.equal(validator.results[1].decision, "ai-review");
+  assert.equal(validator.violations.length, 1);
+  assert.equal(validator.violations[0].ruleId, "REACT-303");
+  assert.deepEqual(validator.violations[0].evidence.evidenceIds, [
+    "evidence:REACT-303",
+    "evidence:REACT-303:match:1",
+  ]);
+  assert.ok(validator.findings.some((item) => item.message.includes("ARCH-999")));
 });
 
 test("collectEvidence gathers regex and import candidates", async () => {
@@ -1118,18 +1248,95 @@ test("audit supports summary and dry-run output", async () => {
 
   const contextPath = path.join(aiRulesDir, "cache", "audit-context.json");
   const ruleIrPath = path.join(aiRulesDir, "cache", "rule-ir.json");
+  const ruleValidatorPath = path.join(aiRulesDir, "cache", "rule-validator.json");
   const templatePath = path.join(aiRulesDir, "cache", "ai-rule-report.template.json");
   const contextExists = await fs.readFile(contextPath, "utf8");
   const ruleIrExists = JSON.parse(await fs.readFile(ruleIrPath, "utf8"));
+  const ruleValidatorExists = JSON.parse(await fs.readFile(ruleValidatorPath, "utf8"));
   const templateExists = JSON.parse(await fs.readFile(templatePath, "utf8"));
 
   assert.match(summary.stderr || "", /audit-context\.json/);
   assert.match(summary.stderr || "", /rule-ir\.json/);
+  assert.match(summary.stderr || "", /rule-validator\.json/);
   assert.match(summary.stderr || "", /ai-rule-report\.template\.json/);
   assert.ok(contextExists.includes("\"stack\": \"python-base\""));
   assert.equal(ruleIrExists.stack, "python-base");
   assert.equal(ruleIrExists.rules.length, 3);
+  assert.equal(ruleValidatorExists.stack, "python-base");
+  assert.equal(ruleValidatorExists.validator.version, "0.1");
+  assert.equal(ruleValidatorExists.validator.violations.length, 3);
   assert.deepEqual(templateExists.violations, []);
+});
+
+test("inspect-logic writes logic audit artifacts", async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-rules-inspect-logic-"));
+  const aiRulesDir = path.join(tempDir, ".ai-rules");
+  await fs.mkdir(aiRulesDir, { recursive: true });
+  await fs.mkdir(path.join(tempDir, "src", "services"), { recursive: true });
+  await fs.writeFile(
+    path.join(tempDir, "src", "services", "orders.ts"),
+    [
+      "export async function approveOrder(order, actor) {",
+      "  if (order.status === 'PENDING') {",
+      "    order.status = 'APPROVED';",
+      "  }",
+      "  return order;",
+      "}",
+      "",
+    ].join("\n"),
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(aiRulesDir, "rules-config.json"),
+    JSON.stringify({
+      rulesFile: ".ai-rules.md",
+      stack: "nodejs-base",
+      enabledRuleIds: ["LOGIC-RULE-001"],
+      scopes: ["workflow"],
+      detectOptions: {
+        include: ["src/**/*.ts"],
+        exclude: [],
+      },
+    }),
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(aiRulesDir, ".ai-rules.md"),
+    [
+      "### RULE: LOGIC-RULE-001",
+      "severity: WARN",
+      "scope: workflow",
+      "intent: Status changes should be guarded by permission and ownership checks.",
+      "detect:",
+      "  semantic: status transition updates without actor, ownership, or state guard review",
+      "fix: Centralize transition guards before status changes.",
+      "prompt:",
+      "  violation: Status changes may bypass required domain checks.",
+      "  requirement: State transitions must validate actor, owner, and source state.",
+      "  solution: Introduce explicit transition guard helpers before mutating status.",
+      "context:",
+      "  - src/services",
+      "",
+    ].join("\n"),
+    "utf8"
+  );
+
+  const cliPath = path.join(__dirname, "..", "cli", "src", "index.js");
+  const { stdout, stderr } = await execFileAsync(process.execPath, [cliPath, "inspect-logic", "--json"], {
+    cwd: tempDir,
+  });
+
+  const payload = JSON.parse(stdout);
+  const logicContextPath = path.join(aiRulesDir, "cache", "logic-audit-context.json");
+  const logicTemplatePath = path.join(aiRulesDir, "cache", "ai-logic-report.template.json");
+  const logicContext = JSON.parse(await fs.readFile(logicContextPath, "utf8"));
+  const logicTemplate = JSON.parse(await fs.readFile(logicTemplatePath, "utf8"));
+
+  assert.equal(payload.config.stack, "nodejs-base");
+  assert.match(stderr, /logic-audit-context\.json/);
+  assert.match(stderr, /ai-logic-report\.template\.json/);
+  assert.ok(logicContext.logicContext.riskKeywords.includes("status"));
+  assert.equal(logicTemplate.risks.length, 0);
 });
 
 test("fix explains how to create ai-rule-report.json when missing", async () => {
@@ -1172,6 +1379,29 @@ test("validate-report warns when evidence references are unknown", async () => {
   );
 
   await fs.writeFile(
+    path.join(cacheDir, "rule-validator.json"),
+    JSON.stringify(
+      {
+        validator: {
+          results: [{ ruleId: "RULE-001" }],
+          violations: [
+            {
+              issueId: "VAL-RULE-001-001",
+              ruleId: "RULE-001",
+              evidence: {
+                evidenceIds: ["evidence:RULE-001", "evidence:RULE-001:match:1"],
+              },
+            },
+          ],
+        },
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+
+  await fs.writeFile(
     path.join(tempDir, "ai-rule-report.json"),
     JSON.stringify(
       {
@@ -1196,6 +1426,62 @@ test("validate-report warns when evidence references are unknown", async () => {
   const { stdout } = await execFileAsync(process.execPath, [cliPath, "validate-report"], { cwd: tempDir });
 
   assert.match(stdout, /unknown evidenceId\(s\): evidence:missing/);
+  assert.match(stdout, /Summary: 1 issue\(s\), 0 error\(s\), 2 warning\(s\)/);
+});
+
+test("validate-report warns when evidence references belong to a different rule", async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-rules-validate-rule-mismatch-"));
+  const cacheDir = path.join(tempDir, ".ai-rules", "cache");
+  await fs.mkdir(cacheDir, { recursive: true });
+
+  await fs.writeFile(
+    path.join(cacheDir, "rule-validator.json"),
+    JSON.stringify(
+      {
+        validator: {
+          results: [{ ruleId: "RULE-001" }, { ruleId: "RULE-002" }],
+          violations: [
+            {
+              issueId: "VAL-RULE-001-001",
+              ruleId: "RULE-001",
+              evidence: {
+                evidenceIds: ["evidence:RULE-001", "evidence:RULE-001:match:1"],
+              },
+            },
+          ],
+        },
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+
+  await fs.writeFile(
+    path.join(tempDir, "ai-rule-report.json"),
+    JSON.stringify(
+      {
+        violations: [
+          {
+            issueId: "ISSUE-002",
+            ruleId: "RULE-002",
+            severity: "WARN",
+            evidence: {
+              evidenceIds: ["evidence:RULE-001:match:1"],
+            },
+          },
+        ],
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+
+  const cliPath = path.join(__dirname, "..", "cli", "src", "index.js");
+  const { stdout } = await execFileAsync(process.execPath, [cliPath, "validate-report"], { cwd: tempDir });
+
+  assert.match(stdout, /belongs to a different rule/);
   assert.match(stdout, /Summary: 1 issue\(s\), 0 error\(s\), 2 warning\(s\)/);
 });
 
@@ -1314,6 +1600,11 @@ test("current expanded templates parse and validate", async () => {
     path.join(__dirname, "..", "templates", "frontend-base", "react-js", "rules-config.json"),
     path.join(__dirname, "..", "templates", "frontend-base", "react-ts", "rules-config.json"),
     path.join(__dirname, "..", "templates", "frontend-base", "vue", "rules-config.json"),
+    path.join(__dirname, "..", "templates", "frontend-base", "electron", "rules-config.json"),
+    path.join(__dirname, "..", "templates", "frontend-base", "vscode-extension", "rules-config.json"),
+    path.join(__dirname, "..", "templates", "nodejs-base", "rules-config.json"),
+    path.join(__dirname, "..", "templates", "nodejs-base", "express", "rules-config.json"),
+    path.join(__dirname, "..", "templates", "nodejs-base", "nestjs", "rules-config.json"),
     path.join(__dirname, "..", "templates", "python-base", "rules-config.json"),
     path.join(__dirname, "..", "templates", "python-base", "python-fastapi", "rules-config.json"),
     path.join(__dirname, "..", "templates", "java-base", "rules-config.json"),

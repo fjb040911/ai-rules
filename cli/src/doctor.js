@@ -1,8 +1,7 @@
 const path = require("path");
 const fs = require("fs/promises");
-const { loadConfig } = require("./core/config/load-config");
+const { loadRuleContext } = require("./core/rules/load-rule-context");
 const { validateConfig } = require("./core/config/validate-config");
-const { parseRules } = require("./core/rules/parse-rules");
 const { validateRules } = require("./core/rules/validate-rules");
 
 async function runDoctor(argv) {
@@ -25,8 +24,11 @@ async function runDoctor(argv) {
   }
 
   let config;
+  let rules;
   try {
-    config = await loadConfig(configPath);
+    const ruleContext = await loadRuleContext({ cwd, configPath });
+    config = ruleContext.config;
+    rules = ruleContext.rules;
   } catch (err) {
     findings.push({ level: "error", message: `Failed to load config: ${String(err.message || err)}` });
     return printDoctorResult(findings, strict);
@@ -50,12 +52,7 @@ async function runDoctor(argv) {
     return printDoctorResult(findings, strict);
   }
 
-  try {
-    const rules = await parseRules(rulesPath);
-    findings.push(...validateRules({ rules, config }));
-  } catch (err) {
-    findings.push({ level: "error", message: `Failed to parse rules: ${String(err.message || err)}` });
-  }
+  findings.push(...validateRules({ rules, config }));
 
   return printDoctorResult(findings, strict);
 }

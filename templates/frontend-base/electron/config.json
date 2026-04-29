@@ -1,0 +1,30 @@
+{
+  "ast": {
+    "provider": "babel",
+    "target": "frontend",
+    "useProjectConfig": true,
+    "parserOptions": {
+      "sourceType": "module",
+      "plugins": [
+        "jsx"
+      ]
+    }
+  },
+  "pathAliases": {
+    "@src": "src",
+    "@uiEntry": "src/renderer",
+    "@renderer": "src/renderer",
+    "@components": "src/renderer/components",
+    "@views": "src/renderer/views",
+    "@services": "src/renderer/services",
+    "@apiClient": "src/renderer/services/ipc-client.{ts,tsx,js,jsx}",
+    "@data": "src/renderer/data",
+    "@utils": "src/renderer/utils",
+    "@sanitize": "src/renderer/utils/sanitize",
+    "@config": "src/config",
+    "@hooks": "src/renderer/hooks",
+    "@public": "public",
+    "@preload": "src/preload",
+    "@mainProcess": "src/main"
+  }
+}
