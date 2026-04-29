@@ -1,0 +1,32 @@
+{
+  "ast": {
+    "provider": "babel",
+    "target": "frontend",
+    "useProjectConfig": true,
+    "parserOptions": {
+      "sourceType": "module",
+      "plugins": [
+        "jsx",
+        "typescript"
+      ]
+    }
+  },
+  "pathAliases": {
+    "@src": "src",
+    "@uiEntry": "src/webview",
+    "@renderer": "src/webview",
+    "@components": "src/webview/components",
+    "@views": "src/webview/views",
+    "@services": "src/services",
+    "@apiClient": "src/services/vscode-client.{ts,tsx,js,jsx}",
+    "@data": "src/data",
+    "@utils": "src/utils",
+    "@sanitize": "src/utils/sanitize",
+    "@config": "src/config",
+    "@hooks": "src/webview/hooks",
+    "@public": "media",
+    "@extensionEntry": "src/extension",
+    "@commands": "src/commands",
+    "@webviews": "src/webview"
+  }
+}

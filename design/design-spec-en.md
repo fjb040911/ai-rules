@@ -123,7 +123,8 @@ The CLI generates a project-local rules directory:
 │   ├── rules-config.json
 │   └── config.json
 └── cache/
-    └── audit-context.json
+    ├── audit-context.json
+    └── rule-validator.json
 ```
 
 ## Template Model
@@ -515,6 +516,8 @@ Handled by `validate-report` and `fix`:
 - duplicate `issueId`
 - invalid `severity`
 - missing `repairPrompt` as warning
+- unknown cached `ruleId` references when validator artifacts are available
+- evidence references that point to a different cached validator rule
 
 ## Testing Strategy
 

@@ -1,0 +1,48 @@
+{
+  "version": "0.1.0",
+  "stack": "nodejs-nestjs",
+  "extends": "../rules-config.json",
+  "rulesFile": ".ai-rules.md",
+  "i18n": {
+    "defaultLocale": "zh-CN",
+    "supportedLocales": [
+      "zh-CN",
+      "en",
+      "zh-TW",
+      "ja",
+      "ko",
+      "es",
+      "fr"
+    ],
+    "localeDir": "../../i18n"
+  },
+  "enabledRuleIds": [
+    "NEST-301",
+    "NEST-302"
+  ],
+  "severityThreshold": "WARN",
+  "scopes": [
+    "transport"
+  ],
+  "detectOptions": {
+    "include": [
+      "src/**/*.{js,ts}"
+    ],
+    "exclude": [
+      "**/*.test.*",
+      "**/*.spec.*",
+      "node_modules/**",
+      "dist/**"
+    ]
+  },
+  "prompt": {
+    "style": "strict",
+    "includeContextAssets": true,
+    "promptTemplateKeys": {
+      "auditSystem": "prompt.audit.system",
+      "auditUser": "prompt.audit.user",
+      "repairSystem": "prompt.repair.system",
+      "repairUser": "prompt.repair.user"
+    }
+  }
+}

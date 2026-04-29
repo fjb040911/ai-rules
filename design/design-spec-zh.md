@@ -123,7 +123,8 @@ CLI 会在项目根目录创建：
 │   ├── rules-config.json
 │   └── config.json
 └── cache/
-    └── audit-context.json
+    ├── audit-context.json
+    └── rule-validator.json
 ```
 
 ## 模板体系
@@ -515,6 +516,8 @@ ai-law -h
 - 重复 `issueId`
 - 非法 `severity`
 - 缺失 `repairPrompt` 作为 warning
+- 在 validator 缓存可用时校验未知 `ruleId`
+- 在 validator 缓存可用时校验证据引用是否属于其它规则
 
 ## 测试策略
 

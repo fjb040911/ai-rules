@@ -40,6 +40,12 @@ async function main() {
     return;
   }
 
+  if (cmd === "inspect-logic") {
+    const { runInspectLogic } = require("./inspect-logic");
+    await runInspectLogic(process.argv.slice(3));
+    return;
+  }
+
   const hasRules = await hasAiRulesDir(process.cwd());
   if (!hasRules) {
     process.stderr.write(".ai-rules not found. Run: ai-law init\n");
@@ -85,6 +91,7 @@ function getHelpText() {
     "  fix --issueId <issue_id>  Copy the fix prompt for a specific issue instance",
     "  fix --all                 Copy the fix prompt for all issues in the report",
     "  setup [--locale <code>]   Generate AI-tool setup prompt and copy it to clipboard",
+    "  inspect-logic             Generate a business-logic risk inspection prompt",
     "  setup --write             Write/update slash command files for a selected provider",
     "  doctor [--strict]         Validate .ai-rules config and parsed rules",
     "  validate-report [--json]  Normalize and validate ai-rule-report.json",
@@ -120,6 +127,7 @@ function getHelpText() {
     "  ai-law setup",
     "  ai-law setup --provider cursor --locale en",
     "  ai-law setup --provider copilot --write",
+    "  ai-law inspect-logic --locale zh-CN",
     "  ai-law doctor",
     "  ai-law validate-report --json",
     "",

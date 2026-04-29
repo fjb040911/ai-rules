@@ -1,0 +1,51 @@
+{
+  "version": "0.1.0",
+  "stack": "vscode-extension",
+  "extends": "../rules-config.json",
+  "rulesFile": ".ai-rules.md",
+  "i18n": {
+    "defaultLocale": "zh-CN",
+    "supportedLocales": [
+      "zh-CN",
+      "en",
+      "zh-TW",
+      "ja",
+      "ko",
+      "es",
+      "fr"
+    ],
+    "localeDir": "../../i18n"
+  },
+  "enabledRuleIds": [
+    "VSCODE-301",
+    "VSCODE-302",
+    "VSCODE-303"
+  ],
+  "severityThreshold": "WARN",
+  "scopes": [
+    "ui",
+    "security"
+  ],
+  "detectOptions": {
+    "include": [
+      "src/**/*.{js,jsx,ts,tsx,html}",
+      "webview/**/*.{js,ts,html}"
+    ],
+    "exclude": [
+      "**/*.test.*",
+      "node_modules/**",
+      "dist/**",
+      ".vscode-test/**"
+    ]
+  },
+  "prompt": {
+    "style": "strict",
+    "includeContextAssets": true,
+    "promptTemplateKeys": {
+      "auditSystem": "prompt.audit.system",
+      "auditUser": "prompt.audit.user",
+      "repairSystem": "prompt.repair.system",
+      "repairUser": "prompt.repair.user"
+    }
+  }
+}

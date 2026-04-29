@@ -1,0 +1,14 @@
+{
+  "pathAliases": {
+    "@src": "src",
+    "@transport": "src/(routes|controllers|handlers|api)",
+    "@routes": "src/routes",
+    "@controllers": "src/controllers",
+    "@handlers": "src/handlers",
+    "@services": "src/services",
+    "@repositories": "src/(repositories|db|models)",
+    "@middleware": "src/middleware",
+    "@config": "src/config",
+    "@tests": "test"
+  }
+}

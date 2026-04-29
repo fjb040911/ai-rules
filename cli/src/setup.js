@@ -28,7 +28,7 @@ const PROVIDERS = [
   {
     value: "claude-code",
     label: "Claude Code",
-    supportsSlash: false,
+    supportsSlash: true,
   },
   {
     value: "custom",
@@ -152,6 +152,10 @@ function getSlashTargets(cwd, provider) {
         command: "fix",
         path: path.join(cwd, ".github", "prompts", "law-fix.prompt.md"),
       },
+      {
+        command: "logic",
+        path: path.join(cwd, ".github", "prompts", "law-logic.prompt.md"),
+      },
     ];
   }
 
@@ -165,6 +169,10 @@ function getSlashTargets(cwd, provider) {
         command: "fix",
         path: path.join(cwd, ".cursor", "commands", "law-fix.md"),
       },
+      {
+        command: "logic",
+        path: path.join(cwd, ".cursor", "commands", "law-logic.md"),
+      },
     ];
   }
 
@@ -177,6 +185,10 @@ function getSlashTargets(cwd, provider) {
       {
         command: "fix",
         path: path.join(cwd, ".claude", "commands", "law", "fix.md"),
+      },
+      {
+        command: "logic",
+        path: path.join(cwd, ".claude", "commands", "law", "logic.md"),
       },
     ];
   }
@@ -193,6 +205,10 @@ function getSlashTargets(cwd, provider) {
         command: "fix",
         path: path.join(codexHome, "prompts", "law-fix.md"),
       },
+      {
+        command: "logic",
+        path: path.join(codexHome, "prompts", "law-logic.md"),
+      },
     ];
   }
 
@@ -205,22 +221,36 @@ function getSlashTargets(cwd, provider) {
       command: "fix",
       path: path.join(cwd, ".ai-rules", "slash-prompts", "law-fix.md"),
     },
+    {
+      command: "logic",
+      path: path.join(cwd, ".ai-rules", "slash-prompts", "law-logic.md"),
+    },
   ];
 }
 
 function buildSlashFileContent(localeMap, provider, command, locale) {
-  const slashName = command === "audit" ? "law-audit" : "law-fix";
-  const description = command === "audit"
-    ? "Run architecture audit and output ai-rule-report.json"
-    : "Fix a single issue by issueId using ai-law fix";
+  const slashName =
+    command === "audit" ? "law-audit" : command === "fix" ? "law-fix" : "law-logic";
+  const description =
+    command === "audit"
+      ? "Run architecture audit and output ai-rule-report.json"
+      : command === "fix"
+        ? "Fix a single issue by issueId using ai-law fix"
+        : "Inspect business-logic risks and output ai-logic-report.json";
+
+  if (provider.value === "claude-code") {
+    return buildClaudeCodeCommandContent({ command, slashName, description, locale });
+  }
 
   const body = command === "audit"
     ? resolve(localeMap, "prompt.audit.cli")
-    : [
+    : command === "fix"
+      ? [
         "Ask user for issueId.",
         "Run: ai-law fix --issueId <ISSUE_ID>",
         "Use the copied prompt to generate minimal patch-ready edits.",
-      ].join("\n");
+      ].join("\n")
+      : resolve(localeMap, "prompt.logic.cli");
 
   const managedBody = [MANAGED_START, body, MANAGED_END].join("\n");
 
@@ -237,18 +267,6 @@ function buildSlashFileContent(localeMap, provider, command, locale) {
   }
 
   if (provider.value === "cursor") {
-    return [
-      "---",
-      `description: ${description}`,
-      `command: /${slashName}`,
-      "---",
-      "",
-      managedBody,
-      "",
-    ].join("\n");
-  }
-
-  if (provider.value === "claude-code") {
     return [
       "---",
       `description: ${description}`,
@@ -279,6 +297,100 @@ function buildSlashFileContent(localeMap, provider, command, locale) {
     managedBody,
     "",
   ].join("\n");
+}
+
+function buildClaudeCodeCommandContent({ command, slashName, description, locale }) {
+  const frontmatter = command === "audit"
+    ? [
+        "---",
+        `description: ${description}`,
+        "argument-hint: [optional-focus]",
+        "allowed-tools: Bash(ai-law audit:*), Read, Write, Edit, MultiEdit",
+        "---",
+      ]
+    : command === "fix"
+      ? [
+        "---",
+        `description: ${description}`,
+        "argument-hint: <ISSUE_ID>",
+        "allowed-tools: Bash(ai-law validate-report:*), Bash(ai-law fix:*), Read, Write, Edit, MultiEdit",
+        "---",
+      ]
+      : [
+        "---",
+        `description: ${description}`,
+        "argument-hint: [optional-focus]",
+        "allowed-tools: Bash(ai-law inspect-logic:*), Read, Write, Edit, MultiEdit",
+        "---",
+      ];
+
+  const body = command === "audit"
+    ? [
+        MANAGED_START,
+        `# /${slashName}`,
+        "",
+        `Run \`ai-law audit --locale ${locale}\` first, use the generated prompt and cache artifacts as the source of truth, then write the final strict JSON report to \`ai-rule-report.json\` in the project root.`,
+        "",
+        "## Step 1: Run the local AI-RULES audit command",
+        `!\`ai-law audit --locale ${locale}\``,
+        "",
+        "## Step 2: Use the generated cache artifacts as context",
+        "- @.ai-rules/cache/audit-context.json",
+        "- @.ai-rules/cache/rule-ir.json",
+        "- @.ai-rules/cache/rule-validator.json",
+        "- @.ai-rules/cache/ai-rule-report.template.json",
+        "",
+        "## Step 3: Produce the audit result",
+        "- Return strict JSON only.",
+        "- Save the final JSON as @ai-rule-report.json in the project root.",
+        "- If optional arguments are provided, treat `$ARGUMENTS` as extra audit focus context.",
+        MANAGED_END,
+      ]
+    : command === "fix"
+      ? [
+        MANAGED_START,
+        `# /${slashName}`,
+        "",
+        "Use the existing validated report and local rule artifacts to generate a focused fix prompt for one issue.",
+        "",
+        "## Required argument",
+        "- Issue ID: `$ARGUMENTS`",
+        "",
+        "## Step 1: Ensure the report is normalized",
+        "!\`ai-law validate-report\`",
+        "",
+        "## Step 2: Generate the fix prompt for the selected issue",
+        "!\`ai-law fix --issueId $ARGUMENTS\`",
+        "",
+        "## Step 3: Apply the fix workflow",
+        "- If `$ARGUMENTS` is empty, stop and ask for a concrete issue ID before continuing.",
+        "- Use the generated fix prompt as the source of truth.",
+        "- Make minimal, architecture-preserving edits only for the selected issue.",
+        MANAGED_END,
+      ]
+      : [
+        MANAGED_START,
+        `# /${slashName}`,
+        "",
+        `Run \`ai-law inspect-logic --locale ${locale}\` first, use the generated logic audit context as the source of truth, then write the final strict JSON report to \`ai-logic-report.json\` in the project root.`,
+        "",
+        "## Step 1: Run the local business-logic inspection command",
+        `!\`ai-law inspect-logic --locale ${locale}\``,
+        "",
+        "## Step 2: Use the generated logic cache artifacts as context",
+        "- @.ai-rules/cache/logic-audit-context.json",
+        "- @.ai-rules/cache/rule-ir.json",
+        "- @.ai-rules/cache/rule-validator.json",
+        "- @.ai-rules/cache/ai-logic-report.template.json",
+        "",
+        "## Step 3: Produce the logic risk report",
+        "- Return strict JSON only.",
+        "- Save the final JSON as @ai-logic-report.json in the project root.",
+        "- If optional arguments are provided, treat `$ARGUMENTS` as extra business-risk focus context.",
+        MANAGED_END,
+      ];
+
+  return [...frontmatter, "", ...body, ""].join("\n");
 }
 
 async function writeManagedFile(targetPath, managedContent) {
@@ -328,4 +440,10 @@ async function fileExists(targetPath) {
   }
 }
 
-module.exports = { runSetup, writeProviderSlashFiles, resolveProvider, readLocaleMap };
+module.exports = {
+  runSetup,
+  writeProviderSlashFiles,
+  resolveProvider,
+  readLocaleMap,
+  buildSlashFileContent,
+};
