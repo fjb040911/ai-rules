@@ -19,6 +19,7 @@ const { resolveRulePaths } = require("../cli/src/core/rules/resolve-rules");
 const { compileRulesToIR } = require("../cli/src/core/rules/compile-rule-ir");
 const { validateRules } = require("../cli/src/core/rules/validate-rules");
 const { collectEvidence } = require("../cli/src/core/evidence/collect");
+const { buildLogicPrompt } = require("../cli/src/core/logic/build-logic-prompt");
 const { runRuleValidator } = require("../cli/src/core/validator/run-rule-validator");
 const { buildAuditPrompt } = require("../cli/src/core/prompt/build-audit-prompt");
 const { normalizeReport } = require("../cli/src/core/report/normalize");
@@ -1337,6 +1338,63 @@ test("inspect-logic writes logic audit artifacts", async () => {
   assert.match(stderr, /ai-logic-report\.template\.json/);
   assert.ok(logicContext.logicContext.riskKeywords.includes("status"));
   assert.equal(logicTemplate.risks.length, 0);
+});
+
+test("buildLogicPrompt switches to native-risk guidance for c-cpp stacks", async () => {
+  const localeMap = await readLocaleMap("en");
+  const prompt = buildLogicPrompt({
+    config: {
+      stack: "c-cpp",
+      severityThreshold: "WARN",
+      detectOptions: { include: ["src/**/*.cpp"], exclude: ["build/**"] },
+    },
+    ruleIR: [
+      {
+        id: "LOGIC-801",
+        severity: "FATAL",
+        scope: "logic",
+        intent: "Resource ownership and release paths must stay explicit.",
+        enabled: true,
+        detectKind: "semantic",
+        validator: { mode: "ai-guided" },
+      },
+    ],
+    validator: {
+      summary: {
+        localEvidenceRules: 0,
+        aiReviewRules: 1,
+        validatorViolationCount: 1,
+      },
+      results: [
+        {
+          ruleId: "LOGIC-801",
+          decision: "ai-review",
+          evidenceMode: "ai-only",
+          evidenceCount: 0,
+        },
+      ],
+      violations: [
+        {
+          issueId: "ISSUE-CPP-001",
+          ruleId: "LOGIC-801",
+          files: ["src/runtime/session.cpp"],
+          description: "Ownership cleanup may diverge on error paths.",
+          evidence: { evidenceIds: ["evidence:LOGIC-801"] },
+        },
+      ],
+    },
+    logicContext: {
+      riskKeywords: ["ownership", "lifetime", "offset", "lock"],
+      highRiskFiles: ["src/runtime/session.cpp"],
+    },
+    localeMap,
+    reportSchemaText: "{...}",
+  });
+
+  assert.match(prompt, /native-code logic and security auditor/);
+  assert.match(prompt, /resource ownership and lifetime transitions/);
+  assert.match(prompt, /privileged file\/process\/socket trust boundaries/);
+  assert.doesNotMatch(prompt, /authorization gaps, ownership checks, invalid state transitions/);
 });
 
 test("fix explains how to create ai-rule-report.json when missing", async () => {

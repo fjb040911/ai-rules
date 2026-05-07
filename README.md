@@ -74,6 +74,15 @@ This mode is designed for logic vulnerabilities that are harder to reduce to fra
 - tenant-isolation mistakes
 - trust-boundary problems between input validation, permissions, and persistence
 
+For native `c-cpp` projects, the same command shifts its review model toward:
+
+- resource ownership and lifetime transitions
+- unchecked critical return values and error propagation
+- inconsistent lock or atomic protocols
+- parser length, offset, and state validation gaps
+- privileged file, process, or socket trust-boundary failures
+- partial cleanup and rollback inconsistencies
+
 The CLI does not claim deterministic local detection for all of these. Instead, it compiles the current rule context, validator output, candidate evidence, and high-risk context files into a focused prompt for AI-assisted logic review.
 
 ## High-Value Built-In Coverage
@@ -600,9 +609,9 @@ ai-law -h
 
 These commands are designed to drive the local AI-RULES workflow instead of only showing static prompt text:
 
-- `/law-audit` runs `ai-law audit --locale <locale>`, reads the generated cache artifacts, and instructs Claude to save the final strict JSON report as `ai-rule-report.json`
-- `/law-fix <ISSUE_ID>` runs `ai-law validate-report`, then `ai-law fix --issueId <ISSUE_ID>`, and focuses Claude on minimal edits for that one issue
-- `/law-logic` runs `ai-law inspect-logic --locale <locale>`, reads the logic cache artifacts, and instructs Claude to save the final strict JSON report as `ai-logic-report.json`
+- `/law:audit` runs `ai-law audit --locale <locale>`, reads the generated cache artifacts, and instructs Claude to save the final strict JSON report as `ai-rule-report.json`
+- `/law:fix <ISSUE_ID>` runs `ai-law validate-report`, then `ai-law fix --issueId <ISSUE_ID>`, and focuses Claude on minimal edits for that one issue
+- `/law:logic` runs `ai-law inspect-logic --locale <locale>`, reads the logic cache artifacts, and instructs Claude to save the final strict JSON report as `ai-logic-report.json`
 
 ## Development Notes
 
