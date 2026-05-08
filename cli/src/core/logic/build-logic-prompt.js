@@ -1,6 +1,7 @@
 function buildLogicPrompt({ config, ruleIR, validator, logicContext, localeMap, reportSchemaText }) {
   const prompt = resolvePromptConfig(config, localeMap);
   const activeRules = (ruleIR || []).filter((rule) => rule.enabled);
+  const focus = resolveLogicFocus(config);
 
   const sections = [
     prompt.logicSystem,
@@ -12,13 +13,14 @@ function buildLogicPrompt({ config, ruleIR, validator, logicContext, localeMap, 
     `- severity threshold: ${config.severityThreshold || "INFO"}`,
     `- include paths: ${formatList((config.detectOptions && config.detectOptions.include) || [])}`,
     `- exclude paths: ${formatList((config.detectOptions && config.detectOptions.exclude) || [])}`,
+    `- review focus: ${formatList(focus.reviewFocus)}`,
     `- risk keywords: ${formatList(logicContext.riskKeywords)}`,
-    `- likely business files: ${formatList(logicContext.highRiskFiles)}`,
+    `- likely high-risk files: ${formatList(logicContext.highRiskFiles)}`,
     `- validator local-evidence rules: ${validator.summary.localEvidenceRules}`,
     `- validator ai-review rules: ${validator.summary.aiReviewRules}`,
     `- validator candidate violations: ${validator.summary.validatorViolationCount}`,
     "",
-    "Business-logic focused rules:",
+    "High-risk rules to use as review anchors:",
     ...buildRuleLines(activeRules),
     "",
     "Validator candidates to inspect carefully:",
@@ -27,7 +29,7 @@ function buildLogicPrompt({ config, ruleIR, validator, logicContext, localeMap, 
     "Output requirements:",
     `Return strict JSON only with shape: ${reportSchemaText}`,
     "- Save the final JSON result as ai-logic-report.json in the project root after completing the logic inspection.",
-    "- Focus on business-logic vulnerabilities such as authorization gaps, ownership checks, invalid state transitions, idempotency holes, tenant-isolation mistakes, trust-boundary failures, and workflow bypasses.",
+    `- Focus on ${focus.outputFocus}.`,
     "- Prefer concrete cross-file reasoning over generic framework advice.",
     "- If no material logic risks are found, return an empty risks array.",
   ];
@@ -37,9 +39,45 @@ function buildLogicPrompt({ config, ruleIR, validator, logicContext, localeMap, 
 
 function resolvePromptConfig(config, localeMap) {
   const templates = (config.prompt && config.prompt.promptTemplates) || {};
+  const stack = (config && config.stack) || "unknown";
+  const isCpp = stack === "c-cpp";
   return {
-    logicSystem: templates.logicSystem || resolve(localeMap, "prompt.logic.system"),
-    logicUser: templates.logicUser || resolve(localeMap, "prompt.logic.user"),
+    logicSystem:
+      templates.logicSystem ||
+      resolve(localeMap, isCpp ? "prompt.logic.c-cpp.system" : "prompt.logic.system"),
+    logicUser:
+      templates.logicUser ||
+      resolve(localeMap, isCpp ? "prompt.logic.c-cpp.user" : "prompt.logic.user"),
+  };
+}
+
+function resolveLogicFocus(config) {
+  const stack = (config && config.stack) || "unknown";
+  if (stack === "c-cpp") {
+    return {
+      reviewFocus: [
+        "resource ownership and lifetime transitions",
+        "critical return values and error propagation",
+        "lock discipline and shared-state mutation protocols",
+        "parser or decoder bounds/state validation",
+        "privileged file/process/socket trust boundaries",
+        "partial cleanup and rollback consistency",
+      ],
+      outputFocus:
+        "native-code vulnerabilities such as ownership/lifetime mistakes, unchecked critical returns, inconsistent lock or atomic protocols, parser length/offset/state validation gaps, privileged-operation trust-boundary failures, and partial cleanup or rollback holes",
+    };
+  }
+
+  return {
+    reviewFocus: [
+      "authorization and ownership checks",
+      "unsafe state transitions",
+      "idempotency and replay protection",
+      "tenant isolation and trust boundaries",
+      "workflow bypasses across validation and persistence",
+    ],
+    outputFocus:
+      "business-logic vulnerabilities such as authorization gaps, ownership checks, invalid state transitions, idempotency holes, tenant-isolation mistakes, trust-boundary failures, and workflow bypasses",
   };
 }
 

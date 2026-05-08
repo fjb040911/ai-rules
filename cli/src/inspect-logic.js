@@ -63,18 +63,7 @@ async function buildLogicContext({ cwd, localeMap }) {
 }
 
 function buildLogicHeuristics({ config, ruleIR, validator }) {
-  const riskKeywords = [
-    "approve",
-    "cancel",
-    "refund",
-    "transfer",
-    "publish",
-    "ownerId",
-    "tenantId",
-    "role",
-    "permission",
-    "status",
-  ];
+  const riskKeywords = resolveRiskKeywords((config && config.stack) || "unknown");
   const highRiskFiles = new Set();
 
   for (const rule of (ruleIR || []).filter((item) => item.enabled)) {
@@ -95,6 +84,46 @@ function buildLogicHeuristics({ config, ruleIR, validator }) {
     includePatterns: (config.detectOptions && config.detectOptions.include) || [],
     validatorViolationCount: (validator.summary && validator.summary.validatorViolationCount) || 0,
   };
+}
+
+function resolveRiskKeywords(stack) {
+  if (stack === "c-cpp") {
+    return [
+      "ownership",
+      "lifetime",
+      "release",
+      "cleanup",
+      "rollback",
+      "return",
+      "status",
+      "errno",
+      "offset",
+      "length",
+      "bounds",
+      "lock",
+      "atomic",
+      "thread",
+      "socket",
+      "open",
+      "exec",
+      "parser",
+      "decode",
+      "privileged",
+    ];
+  }
+
+  return [
+    "approve",
+    "cancel",
+    "refund",
+    "transfer",
+    "publish",
+    "ownerId",
+    "tenantId",
+    "role",
+    "permission",
+    "status",
+  ];
 }
 
 async function writeLogicArtifacts(cwd, context, { forceContextWrite }) {
