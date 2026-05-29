@@ -2,6 +2,9 @@ const fs = require("fs/promises");
 const path = require("path");
 const { matchesGlob, normalizePath } = require("./glob");
 
+/** Directory names skipped during the default workspace walk (always, not via glob). */
+const SKIP_TRAVERSE_DIR_NAMES = new Set(["node_modules", ".git"]);
+
 async function collectFiles({ cwd, include = [], exclude = [] }) {
   const allFiles = await walkFiles(cwd, cwd);
   return allFiles.filter((relativePath) => {
@@ -21,6 +24,9 @@ async function walkFiles(rootDir, currentDir) {
     const relativePath = path.relative(rootDir, fullPath);
 
     if (entry.isDirectory()) {
+      if (SKIP_TRAVERSE_DIR_NAMES.has(entry.name)) {
+        continue;
+      }
       files.push(...(await walkFiles(rootDir, fullPath)));
       continue;
     }

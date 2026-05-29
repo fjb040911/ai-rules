@@ -607,7 +607,7 @@ Branch templates inherit from base templates through `extends`.
 ```bash
 ai-law init
 ai-law audit [--locale <code>] [--json] [--summary] [--dry-run] [--dump-context]
-ai-law inspect-logic [--locale <code>] [--json] [--dump-context]
+ai-law inspect-logic [--locale <code>] [--profile logic|native|model] [--json] [--dump-context]
 ai-law fix --issueId <issue_id>
 ai-law fix --id <rule_id>
 ai-law fix --all [--group-by-rule]
@@ -620,21 +620,29 @@ ai-law -h
 
 ## Agent skills & slash integration (`setup --write`)
 
-`ai-law setup --provider <name> --write` installs **Agent Skills**–style layouts where each tool expects them (YAML `name` / `description` / `argument-hint` + `SKILL.md`). Re-running `--write` **removes legacy paths** for that provider (e.g. old `.claude/commands/*.md`, `.cursor/commands/*.md`, `~/.codex/prompts/law-*.md`, `.ai-rules/slash-prompts/*.md`) so you do not get duplicate `/law-*` entries.
+`ai-law setup --provider <name> --write` installs **Agent Skills**–style layouts where each tool expects them (YAML `name` / `description` / `argument-hint` + `SKILL.md`). Re-running `--write` **removes legacy paths** for that provider (e.g. old `.claude/commands/*.md`, `.cursor/commands/*.md`, `~/.codex/prompts/law-*.md`, `.ai-rules/slash-prompts/*.md`) so you do not get duplicate `/law-*` entries. The same command also writes `.ai-rules/cache/skill-manifest.json`, which records the generated provider layout, workflows, output files, and cache artifacts that each skill expects.
 
 | Provider | Output paths (project or home) |
 |----------|--------------------------------|
-| **claude-code** | `.claude/skills/law-audit/SKILL.md`, `law-fix`, `law-logic` |
-| **cursor** | `.cursor/skills/law-audit/SKILL.md`, `law-fix`, `law-logic` |
+| **claude-code** | `.claude/skills/law-audit/SKILL.md`, `law-fix`, `law-logic`, `law-native`, `law-model` |
+| **cursor** | `.cursor/skills/law-audit/SKILL.md`, `law-fix`, `law-logic`, `law-native`, `law-model` |
 | **codex** | `$CODEX_HOME/skills/.../SKILL.md` (default `~/.codex/skills/...`) |
 | **copilot** | `.github/prompts/law-audit.prompt.md` (GitHub Copilot prompts; no shared skills root) |
 | **custom** | `.ai-rules/skills/.../SKILL.md` (portable copy for other editors) |
 
-Behavior of the three workflows (invoke via `/law-audit`, `/law-fix`, `/law-logic` where the product supports skills):
+Behavior of the five workflows (invoke via `/law-audit`, `/law-fix`, `/law-logic`, `/law-native`, `/law-model` where the product supports skills):
 
 - **law-audit** — run `ai-law audit`, use cache artifacts, produce `ai-rule-report.json` (Claude Code body uses `` !`...` `` injection; Cursor/Codex/custom use prompt-backed steps).
 - **law-fix** — normalized report + `ai-law fix --issueId …` for one issue.
 - **law-logic** — `ai-law inspect-logic` + `ai-logic-report.json`.
+- **law-native** — `ai-law inspect-logic --profile native` + `ai-native-report.json`.
+- **law-model** — `ai-law inspect-logic --profile model` + `ai-model-report.json`.
+
+`ai-law doctor` now validates managed skill installs too:
+
+- checks whether every file declared in `.ai-rules/cache/skill-manifest.json` still exists
+- warns if a skill layout exists but the manifest is missing
+- for Claude Code, warns when `.claude/settings.local.json` does not allow `Bash(ai-law:*)`
 
 Claude Code `SKILL.md` bodies omit `allowed-tools` in frontmatter (some builds reject `Bash(tool:*)` patterns). If `/law-*` never appears in completion, try an official client build; proxy stacks may not load project skills.
 

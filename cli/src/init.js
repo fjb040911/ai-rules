@@ -2,7 +2,7 @@ const path = require("path");
 const fs = require("fs/promises");
 const inquirer = require("inquirer");
 const prompt = inquirer.prompt || (inquirer.default && inquirer.default.prompt);
-const { runSetup } = require("./setup");
+const { runSetup, coerceProviderInput } = require("./setup");
 const {
   buildTemplateChoices,
   getTemplatesRoot,
@@ -188,7 +188,7 @@ async function maybeSetupSlashCommands(cwd, locale) {
     {
       type: "confirm",
       name: "enableSlash",
-      message: "Configure slash command files now?",
+      message: "Configure slash / Agent Skills files now?",
       default: true,
     },
   ]);
@@ -201,7 +201,7 @@ async function maybeSetupSlashCommands(cwd, locale) {
     {
       type: "list",
       name: "provider",
-      message: "Select AI coding tool for slash setup",
+      message: "Select AI coding tool for slash / Agent Skills setup",
       choices: [
         { name: "GitHub Copilot", value: "copilot" },
         { name: "OpenAI Codex", value: "codex" },
@@ -212,7 +212,10 @@ async function maybeSetupSlashCommands(cwd, locale) {
     },
   ]);
 
-  await runSetup(["--provider", provider, "--locale", locale, "--write"]);
+  const providerId = coerceProviderInput(provider) || String(provider);
+  await runSetup(["--provider", providerId, "--locale", String(locale), "--write"], {
+    cwd,
+  });
 }
 
 function printSuccessBanner() {
@@ -239,8 +242,8 @@ function printSuccessBanner() {
     "  2. Fix violations by issueId:",
     "     $ ai-law fix --issueId <ISSUE_ID>",
     "",
-    "  3. Configure slash commands (optional):",
-    "     $ ai-law setup --write",
+    "  3. Configure slash / skills (optional):",
+    "     $ ai-law setup --provider claude-code --write",
     "",
     "  4. Get help anytime:",
     "     $ ai-law -h",

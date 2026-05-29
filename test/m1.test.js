@@ -24,7 +24,13 @@ const { runRuleValidator } = require("../cli/src/core/validator/run-rule-validat
 const { buildAuditPrompt } = require("../cli/src/core/prompt/build-audit-prompt");
 const { normalizeReport } = require("../cli/src/core/report/normalize");
 const { readLocaleMap } = require("../cli/src/utils/templates");
-const { resolveProvider, buildSlashFileContent } = require("../cli/src/setup");
+const {
+  resolveProvider,
+  buildSlashFileContent,
+  ensureClaudeCodeAiLawBashPermission,
+  coerceProviderInput,
+  runSetup,
+} = require("../cli/src/setup");
 
 const execFileAsync = promisify(execFile);
 
@@ -279,8 +285,11 @@ test("Claude Code slash files drive the local audit and fix workflow", async () 
   const auditContent = buildSlashFileContent(localeMap, provider, "audit", "en");
   const fixContent = buildSlashFileContent(localeMap, provider, "fix", "en");
   const logicContent = buildSlashFileContent(localeMap, provider, "logic", "en");
+  const nativeContent = buildSlashFileContent(localeMap, provider, "native", "en");
+  const modelContent = buildSlashFileContent(localeMap, provider, "model", "en");
 
-  assert.match(auditContent, /allowed-tools: Bash\(ai-law audit:\*\), Read, Write, Edit, MultiEdit/);
+  assert.doesNotMatch(auditContent, /^allowed-tools:/m);
+  assert.match(auditContent, /^name: law-audit$/m);
   assert.match(auditContent, /!`ai-law audit --locale en`/);
   assert.match(auditContent, /@\.ai-rules\/cache\/audit-context\.json/);
   assert.match(auditContent, /@ai-rule-report\.json/);
@@ -288,14 +297,87 @@ test("Claude Code slash files drive the local audit and fix workflow", async () 
   assert.match(fixContent, /argument-hint: <ISSUE_ID>/);
   assert.match(fixContent, /!`ai-law validate-report`/);
   assert.match(fixContent, /!`ai-law fix --issueId \$ARGUMENTS`/);
-  assert.match(fixContent, /If `\$ARGUMENTS` is empty, stop and ask for a concrete issue ID/);
+  assert.match(
+    fixContent,
+    /If `\$ARGUMENTS` is empty or whitespace-only, stop and ask for a concrete issue ID/
+  );
 
-  assert.match(logicContent, /allowed-tools: Bash\(ai-law inspect-logic:\*\), Read, Write, Edit, MultiEdit/);
+  assert.doesNotMatch(logicContent, /^allowed-tools:/m);
   assert.match(logicContent, /!`ai-law inspect-logic --locale en`/);
   assert.match(logicContent, /@\.ai-rules\/cache\/logic-audit-context\.json/);
   assert.match(logicContent, /@ai-logic-report\.json/);
+
+  assert.match(nativeContent, /^name: law-native$/m);
+  assert.match(nativeContent, /!`ai-law inspect-logic --locale en --profile native`/);
+  assert.match(nativeContent, /@\.ai-rules\/cache\/native-audit-context\.json/);
+  assert.match(nativeContent, /@ai-native-report\.json/);
+
+  assert.match(modelContent, /^name: law-model$/m);
+  assert.match(modelContent, /!`ai-law inspect-logic --locale en --profile model`/);
+  assert.match(modelContent, /@\.ai-rules\/cache\/model-audit-context\.json/);
+  assert.match(modelContent, /@ai-model-report\.json/);
 });
 
+test("Cursor Agent Skill layout uses SKILL.md frontmatter without Copilot command field", async () => {
+  const localeMap = await readLocaleMap("en");
+  const provider = resolveProvider("cursor");
+  const content = buildSlashFileContent(localeMap, provider, "audit", "en");
+  assert.match(content, /^name: law-audit$/m);
+  assert.match(content, /^description: /m);
+  assert.doesNotMatch(content, /^command: \/law-audit$/m);
+});
+
+test("coerceProviderInput accepts ids and common display labels", () => {
+  assert.equal(coerceProviderInput("claude-code"), "claude-code");
+  assert.equal(coerceProviderInput("Claude Code"), "claude-code");
+  assert.equal(coerceProviderInput("  copilot  "), "copilot");
+  assert.equal(coerceProviderInput("GitHub Copilot"), "copilot");
+});
+
+test("ensureClaudeCodeAiLawBashPermission merges settings.local.json once", async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-law-claude-settings-"));
+  try {
+    await ensureClaudeCodeAiLawBashPermission(tempDir);
+    const settingsPath = path.join(tempDir, ".claude", "settings.local.json");
+    const data = JSON.parse(await fs.readFile(settingsPath, "utf8"));
+    assert.ok(Array.isArray(data.permissions.allow));
+    assert.ok(data.permissions.allow.includes("Bash(ai-law:*)"));
+    await ensureClaudeCodeAiLawBashPermission(tempDir);
+    const data2 = JSON.parse(await fs.readFile(settingsPath, "utf8"));
+    assert.equal(
+      data2.permissions.allow.filter((x) => x === "Bash(ai-law:*)").length,
+      1
+    );
+  } finally {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("runSetup writes skill manifest and managed skill files", async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-law-setup-manifest-"));
+  try {
+    await fs.mkdir(path.join(tempDir, ".ai-rules"), { recursive: true });
+    await runSetup(["--provider", "cursor", "--locale", "en", "--write"], { cwd: tempDir });
+
+    const manifestPath = path.join(tempDir, ".ai-rules", "cache", "skill-manifest.json");
+    const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
+    assert.equal(manifest.provider, "cursor");
+    assert.equal(manifest.skills.length, 5);
+    assert.deepEqual(
+      manifest.skills.map((item) => item.name),
+      ["law-audit", "law-fix", "law-logic", "law-native", "law-model"]
+    );
+    assert.equal(manifest.skills[0].outputFile, "ai-rule-report.json");
+    assert.equal(manifest.skills[3].outputFile, "ai-native-report.json");
+    assert.equal(manifest.skills[4].outputFile, "ai-model-report.json");
+
+    const nativeSkillPath = path.join(tempDir, ".cursor", "skills", "law-native", "SKILL.md");
+    const nativeSkill = await fs.readFile(nativeSkillPath, "utf8");
+    assert.match(nativeSkill, /ai-law inspect-logic --locale en --profile native/);
+  } finally {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  }
+});
 
 test("parseRules resolves extends and preserves rule fields", async () => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-rules-rules-"));
@@ -1144,6 +1226,57 @@ test("doctor warns when pathAliases point to missing paths", async () => {
   assert.match(stdout, /\.ai-rules\/config\.json/);
 });
 
+test("doctor validates managed skills and Claude Bash permission", async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-rules-doctor-skills-"));
+  try {
+    await fs.mkdir(path.join(tempDir, ".ai-rules"), { recursive: true });
+    await fs.writeFile(
+      path.join(tempDir, ".ai-rules", "rules-config.json"),
+      JSON.stringify({
+        rulesFile: ".ai-rules.md",
+        enabledRuleIds: ["RULE-001"],
+        scopes: ["security"],
+      }),
+      "utf8"
+    );
+    await fs.writeFile(
+      path.join(tempDir, ".ai-rules", ".ai-rules.md"),
+      [
+        "### RULE: RULE-001",
+        "severity: WARN",
+        "scope: security",
+        "intent: Keep things safe",
+        "",
+        "detect:",
+        "  regex: \"secret\"",
+        "fix: Remove the secret",
+        "prompt:",
+        "  violation: Secret found",
+        "  requirement: Secrets must not be committed",
+        "  solution: Move secrets to secure config",
+        "",
+      ].join("\n"),
+      "utf8"
+    );
+
+    await runSetup(["--provider", "claude-code", "--locale", "en", "--write"], { cwd: tempDir });
+    const settingsPath = path.join(tempDir, ".claude", "settings.local.json");
+    await fs.writeFile(
+      settingsPath,
+      JSON.stringify({ permissions: { allow: [] } }, null, 2) + "\n",
+      "utf8"
+    );
+
+    const cliPath = path.join(__dirname, "..", "cli", "src", "index.js");
+    const { stdout } = await execFileAsync(process.execPath, [cliPath, "doctor"], { cwd: tempDir });
+
+    assert.match(stdout, /missing Bash\(ai-law:\*\) in permissions\.allow/);
+    assert.doesNotMatch(stdout, /missing at .*law-audit/);
+  } finally {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("audit supports summary and dry-run output", async () => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-rules-audit-modes-"));
   const aiRulesDir = path.join(tempDir, ".ai-rules");
@@ -1338,6 +1471,61 @@ test("inspect-logic writes logic audit artifacts", async () => {
   assert.match(stderr, /ai-logic-report\.template\.json/);
   assert.ok(logicContext.logicContext.riskKeywords.includes("status"));
   assert.equal(logicTemplate.risks.length, 0);
+});
+
+test("inspect-logic profile writes native and model artifact names", async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-rules-inspect-logic-profiles-"));
+  const aiRulesDir = path.join(tempDir, ".ai-rules");
+  try {
+    await fs.mkdir(aiRulesDir, { recursive: true });
+    await fs.mkdir(path.join(tempDir, "src"), { recursive: true });
+    await fs.writeFile(path.join(tempDir, "src", "pipeline.py"), "def run(batch):\n    return batch\n", "utf8");
+    await fs.writeFile(
+      path.join(aiRulesDir, "rules-config.json"),
+      JSON.stringify({
+        rulesFile: ".ai-rules.md",
+        stack: "python-base",
+        enabledRuleIds: ["ML-IO-101"],
+        scopes: ["model-io"],
+        detectOptions: { include: ["src/**/*.py"], exclude: [] },
+      }),
+      "utf8"
+    );
+    await fs.writeFile(
+      path.join(aiRulesDir, ".ai-rules.md"),
+      [
+        "### RULE: ML-IO-101",
+        "severity: WARN",
+        "scope: model-io",
+        "intent: Validate model input contracts.",
+        "detect:",
+        "  semantic: model input shape or dtype assumptions are implicit",
+        "fix: Add explicit shape and dtype validation.",
+        "prompt:",
+        "  violation: Model inputs rely on implicit assumptions.",
+        "  requirement: Shape, dtype, and device must be explicit.",
+        "  solution: Validate them before model execution.",
+        "",
+      ].join("\n"),
+      "utf8"
+    );
+
+    const cliPath = path.join(__dirname, "..", "cli", "src", "index.js");
+    await execFileAsync(
+      process.execPath,
+      [cliPath, "inspect-logic", "--json", "--profile", "model"],
+      { cwd: tempDir }
+    );
+
+    const modelContextPath = path.join(aiRulesDir, "cache", "model-audit-context.json");
+    const modelTemplatePath = path.join(aiRulesDir, "cache", "ai-model-report.template.json");
+    const modelContext = JSON.parse(await fs.readFile(modelContextPath, "utf8"));
+    assert.equal(modelContext.profile, "model");
+    assert.ok(modelContext.logicContext.riskKeywords.includes("shape"));
+    assert.deepEqual(JSON.parse(await fs.readFile(modelTemplatePath, "utf8")).risks, []);
+  } finally {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  }
 });
 
 test("buildLogicPrompt switches to native-risk guidance for c-cpp stacks", async () => {

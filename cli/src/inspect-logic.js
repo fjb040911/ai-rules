@@ -7,14 +7,16 @@ const { validateConfig } = require("./core/config/validate-config");
 const { validateRules } = require("./core/rules/validate-rules");
 const { runRuleValidator } = require("./core/validator/run-rule-validator");
 const { getLogicReportSchemaText, buildLogicReportTemplate } = require("./core/logic/schema");
+const { getLogicArtifactNames } = require("./core/logic/artifacts");
 const { buildLogicPrompt } = require("./core/logic/build-logic-prompt");
 
 async function runInspectLogic(argv) {
   const locale = parseLocaleArg(argv) || (await readDefaultLocale()) || "en";
+  const profile = parseProfileArg(argv);
   const localeMap = await readLocaleMap(locale);
   const outputJson = argv.includes("--json");
   const dumpContext = argv.includes("--dump-context");
-  const context = await buildLogicContext({ cwd: process.cwd(), localeMap });
+  const context = await buildLogicContext({ cwd: process.cwd(), localeMap, profile });
 
   if (context.findings.some((item) => item.level === "error")) {
     printFindings(context.findings);
@@ -35,35 +37,38 @@ async function runInspectLogic(argv) {
     ruleIR: context.ruleIR,
     validator: context.validator,
     logicContext: context.logicContext,
+    profile: context.profile,
     localeMap,
     reportSchemaText: getLogicReportSchemaText(),
   });
   writeOutput(prompt);
 }
 
-async function buildLogicContext({ cwd, localeMap }) {
+async function buildLogicContext({ cwd, localeMap, profile }) {
   const { config, rules, ruleIR } = await loadRuleContext({ cwd });
   const findings = [
     ...(await validateConfig({ config, cwd, configDir: path.join(cwd, ".ai-rules") })),
     ...validateRules({ rules, config }),
   ];
   const validator = await runRuleValidator({ cwd, config, rules, ruleIR });
+  const resolvedProfile = resolveProfile((config && config.stack) || "unknown", profile);
 
   return {
     version: readCliVersion(),
     generatedAt: new Date().toISOString(),
     locale: inferLocale(config, localeMap),
+    profile: resolvedProfile,
     config,
     rules,
     ruleIR,
     validator,
-    logicContext: buildLogicHeuristics({ config, ruleIR, validator }),
+    logicContext: buildLogicHeuristics({ config, ruleIR, validator, profile: resolvedProfile }),
     findings,
   };
 }
 
-function buildLogicHeuristics({ config, ruleIR, validator }) {
-  const riskKeywords = resolveRiskKeywords((config && config.stack) || "unknown");
+function buildLogicHeuristics({ config, ruleIR, validator, profile }) {
+  const riskKeywords = resolveRiskKeywords((config && config.stack) || "unknown", profile);
   const highRiskFiles = new Set();
 
   for (const rule of (ruleIR || []).filter((item) => item.enabled)) {
@@ -79,6 +84,7 @@ function buildLogicHeuristics({ config, ruleIR, validator }) {
   }
 
   return {
+    profile,
     riskKeywords,
     highRiskFiles: [...highRiskFiles].slice(0, 40),
     includePatterns: (config.detectOptions && config.detectOptions.include) || [],
@@ -86,8 +92,21 @@ function buildLogicHeuristics({ config, ruleIR, validator }) {
   };
 }
 
-function resolveRiskKeywords(stack) {
+function resolveProfile(stack, requestedProfile) {
+  if (requestedProfile === "native" || requestedProfile === "model" || requestedProfile === "logic") {
+    return requestedProfile;
+  }
   if (stack === "c-cpp") {
+    return "native";
+  }
+  if (stack === "python-base" || stack === "python-fastapi") {
+    return "model";
+  }
+  return "logic";
+}
+
+function resolveRiskKeywords(stack, profile) {
+  if (profile === "native" || stack === "c-cpp") {
     return [
       "ownership",
       "lifetime",
@@ -112,6 +131,31 @@ function resolveRiskKeywords(stack) {
     ];
   }
 
+  if (profile === "model") {
+    return [
+      "shape",
+      "dtype",
+      "device",
+      "batch",
+      "precision",
+      "fp16",
+      "bf16",
+      "int8",
+      "checkpoint",
+      "strict",
+      "tokenizer",
+      "label_map",
+      "threshold",
+      "postprocess",
+      "seed",
+      "dropout",
+      "batchnorm",
+      "eval",
+      "train",
+      "fallback",
+    ];
+  }
+
   return [
     "approve",
     "cancel",
@@ -128,24 +172,25 @@ function resolveRiskKeywords(stack) {
 
 async function writeLogicArtifacts(cwd, context, { forceContextWrite }) {
   const cacheDir = path.join(cwd, ".ai-rules", "cache");
+  const artifactNames = getLogicArtifactNames(context.profile);
   await fs.mkdir(cacheDir, { recursive: true });
   await fs.writeFile(
-    path.join(cacheDir, "logic-audit-context.json"),
+    path.join(cacheDir, artifactNames.contextFile),
     JSON.stringify(context, null, 2) + "\n",
     "utf8"
   );
   await fs.writeFile(
-    path.join(cacheDir, "ai-logic-report.template.json"),
+    path.join(cacheDir, artifactNames.templateFile),
     JSON.stringify(buildLogicReportTemplate({ stack: context.config && context.config.stack }), null, 2) + "\n",
     "utf8"
   );
 
   if (!forceContextWrite) {
     process.stderr.write(
-      "Wrote .ai-rules/cache/logic-audit-context.json and .ai-rules/cache/ai-logic-report.template.json\n"
+      `Wrote .ai-rules/cache/${artifactNames.contextFile} and .ai-rules/cache/${artifactNames.templateFile}\n`
     );
     process.stderr.write(
-      "After your AI returns the logic inspection result, save it as ai-logic-report.json in the project root.\n"
+      `After your AI returns the logic inspection result, save it as ${artifactNames.outputFile} in the project root.\n`
     );
   }
 }
@@ -155,6 +200,16 @@ function parseLocaleArg(argv) {
     const arg = argv[i];
     if (arg === "--locale" || arg === "-l") {
       return argv[i + 1];
+    }
+  }
+  return null;
+}
+
+function parseProfileArg(argv) {
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (arg === "--profile") {
+      return argv[i + 1] || null;
     }
   }
   return null;
@@ -193,4 +248,5 @@ function readCliVersion() {
 
 module.exports = {
   runInspectLogic,
+  getLogicArtifactNames,
 };
