@@ -26,10 +26,18 @@
     "PYBASE-SEC-302",
     "PYBASE-SEC-303",
     "PYBASE-SEC-304",
+    "PYBASE-SEC-305",
     "PYBASE-TEST-401",
     "PYBASE-REPRO-501",
+    "ML-STATE-301",
+    "ML-CONF-303",
+    "ML-CKPT-304",
     "PYBASE-ERR-601",
-    "PYBASE-IO-602"
+    "PYBASE-IO-602",
+    "PYBASE-IO-603",
+    "ML-IO-101",
+    "ML-PRECISION-202",
+    "ML-EVAL-501"
   ],
   "thresholds": {
     "maxFunctionLines": 60,
@@ -42,8 +50,14 @@
     "security",
     "test",
     "reproducibility",
+    "model-state",
+    "model-config",
+    "model-checkpoint",
     "error-handling",
-    "io"
+    "io",
+    "model-io",
+    "model-precision",
+    "model-eval"
   ],
   "detectOptions": {
     "include": [

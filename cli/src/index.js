@@ -24,7 +24,7 @@ async function main() {
 
   if (cmd === "setup") {
     const { runSetup } = require("./setup");
-    await runSetup(process.argv.slice(3));
+    await runSetup(process.argv.slice(3), { cwd: process.cwd() });
     return;
   }
 
@@ -91,7 +91,7 @@ function getHelpText() {
     "  fix --issueId <issue_id>  Copy the fix prompt for a specific issue instance",
     "  fix --all                 Copy the fix prompt for all issues in the report",
     "  setup [--locale <code>]   Generate AI-tool setup prompt and copy it to clipboard",
-    "  inspect-logic             Generate a business-logic risk inspection prompt",
+    "  inspect-logic             Generate a logic/native/model risk inspection prompt",
     "  setup --write             Write/update slash command files for a selected provider",
     "  doctor [--strict]         Validate .ai-rules config and parsed rules",
     "  validate-report [--json]  Normalize and validate ai-rule-report.json",
@@ -100,12 +100,13 @@ function getHelpText() {
     "  -h, --help                Show this help message",
     "  -v, --version             Show CLI version",
     "  -l, --locale <code>       Locale for audit prompt (default: en)",
+    "      --profile <name>      inspect-logic profile: logic|native|model",
     "      --json                Print audit context JSON instead of prompt",
     "      --summary             Print audit coverage summary",
     "      --dry-run             Print audit plan without generating the prompt",
     "      --dump-context        Explicitly rewrite .ai-rules/cache/audit-context.json",
     "  -p, --provider <name>     Setup provider: copilot|codex|cursor|claude-code|custom",
-    "      --write               Write slash command files (OpenSpec-style managed update)",
+    "      --write               Write Agent Skill / slash files (managed block update)",
     "      --strict              Treat warnings as failures in doctor",
     "      --path <file>         Custom path for validate-report",
     "      --group-by-rule       Group fix --all output by rule",
@@ -128,6 +129,7 @@ function getHelpText() {
     "  ai-law setup --provider cursor --locale en",
     "  ai-law setup --provider copilot --write",
     "  ai-law inspect-logic --locale zh-CN",
+    "  ai-law inspect-logic --locale zh-CN --profile native",
     "  ai-law doctor",
     "  ai-law validate-report --json",
     "",

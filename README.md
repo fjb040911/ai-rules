@@ -114,8 +114,16 @@ Current templates already cover a first batch of high-priority engineering rules
 - Weak password hashing algorithms such as MD5/SHA1 are flagged
 - Logging patterns that may leak sensitive values are flagged
 - External HTTP calls should define explicit timeouts
+- Filesystem, database, cache, subprocess, and model-serving I/O should define bounded wait or timeout policies
+- Subprocess and shell invocation should preserve argument boundaries and avoid command injection
 - Python functions should stay below configured line-count thresholds
 - Python function signatures should stay below configured parameter-count thresholds
+- Model input boundaries should validate shape, dtype, device, and batch assumptions
+- Model precision/device fallback should not silently drift across fp32/fp16/bf16/int8 or CPU/GPU/accelerator paths
+- Model runtime mode, stochastic layers, and seed state should be explicit
+- Model and inference configuration should not silently fall back to implicit defaults
+- Checkpoint load/save/resume paths should validate strictness, remap assumptions, and version compatibility
+- Evaluation pipelines should keep tokenizer, label map, thresholds, and postprocess contracts consistent
 - FastAPI routes should not access repositories or DB sessions directly
 - SQL built through interpolation/concatenation in FastAPI code is flagged
 - FastAPI request logging must avoid tokens, cookies, auth headers, and raw credentials
@@ -146,6 +154,17 @@ Current templates already cover a first batch of high-priority engineering rules
 - Sensitive logging, swallowed async errors, and missing outbound timeout discipline are flagged
 - Express templates focus on thin route handlers and explicit response/error control flow
 - NestJS templates focus on thin controllers and preventing direct repository-style injection into controllers
+
+### C / C++
+
+- Raw `new/delete` and unsafe C string/input APIs are flagged
+- Partially acquired resources should be released on failed init and early-return paths
+- DMA buffer, map/unmap, and cache-coherency lifecycles should stay explicit
+- Critical return values and status codes should not be ignored
+- Shared locks should follow consistent ordering and avoid deadlock-prone callback protocols
+- External file/process/socket targets should validate trust boundaries before privileged operations
+- Firmware, descriptor, and ring-response protocol fields should validate version/opcode/status/length before use
+- Core modules should include targeted tests
 
 ## Current Scope
 
@@ -588,7 +607,7 @@ Branch templates inherit from base templates through `extends`.
 ```bash
 ai-law init
 ai-law audit [--locale <code>] [--json] [--summary] [--dry-run] [--dump-context]
-ai-law inspect-logic [--locale <code>] [--json] [--dump-context]
+ai-law inspect-logic [--locale <code>] [--profile logic|native|model] [--json] [--dump-context]
 ai-law fix --issueId <issue_id>
 ai-law fix --id <rule_id>
 ai-law fix --all [--group-by-rule]
@@ -599,19 +618,43 @@ ai-law -v
 ai-law -h
 ```
 
-## Claude Code Integration
+## Agent skills & slash integration (`setup --write`)
 
-`ai-law setup --provider claude-code --write` now generates project commands under:
+`ai-law setup --provider <name> --write` installs **Agent Skills**–style layouts where each tool expects them (YAML `name` / `description` / `argument-hint` + `SKILL.md`). Re-running `--write` **removes legacy paths** for that provider (e.g. old `.claude/commands/*.md`, `.cursor/commands/*.md`, `~/.codex/prompts/law-*.md`, `.ai-rules/slash-prompts/*.md`) so you do not get duplicate `/law-*` entries. The same command also writes `.ai-rules/cache/skill-manifest.json`, which records the generated provider layout, workflows, output files, and cache artifacts that each skill expects.
 
-- `.claude/commands/law/audit.md`
-- `.claude/commands/law/fix.md`
-- `.claude/commands/law/logic.md`
+| Provider | Output paths (project or home) |
+|----------|--------------------------------|
+| **claude-code** | `.claude/skills/law-audit/SKILL.md`, `law-fix`, `law-logic`, `law-native`, `law-model` |
+| **cursor** | `.cursor/skills/law-audit/SKILL.md`, `law-fix`, `law-logic`, `law-native`, `law-model` |
+| **codex** | `$CODEX_HOME/skills/.../SKILL.md` (default `~/.codex/skills/...`) |
+| **copilot** | `.github/prompts/law-audit.prompt.md` (GitHub Copilot prompts; no shared skills root) |
+| **custom** | `.ai-rules/skills/.../SKILL.md` (portable copy for other editors) |
 
-These commands are designed to drive the local AI-RULES workflow instead of only showing static prompt text:
+Behavior of the five workflows (invoke via `/law-audit`, `/law-fix`, `/law-logic`, `/law-native`, `/law-model` where the product supports skills):
 
-- `/law:audit` runs `ai-law audit --locale <locale>`, reads the generated cache artifacts, and instructs Claude to save the final strict JSON report as `ai-rule-report.json`
-- `/law:fix <ISSUE_ID>` runs `ai-law validate-report`, then `ai-law fix --issueId <ISSUE_ID>`, and focuses Claude on minimal edits for that one issue
-- `/law:logic` runs `ai-law inspect-logic --locale <locale>`, reads the logic cache artifacts, and instructs Claude to save the final strict JSON report as `ai-logic-report.json`
+- **law-audit** — run `ai-law audit`, use cache artifacts, produce `ai-rule-report.json` (Claude Code body uses `` !`...` `` injection; Cursor/Codex/custom use prompt-backed steps).
+- **law-fix** — normalized report + `ai-law fix --issueId …` for one issue.
+- **law-logic** — `ai-law inspect-logic` + `ai-logic-report.json`.
+- **law-native** — `ai-law inspect-logic --profile native` + `ai-native-report.json`.
+- **law-model** — `ai-law inspect-logic --profile model` + `ai-model-report.json`.
+
+`ai-law doctor` now validates managed skill installs too:
+
+- checks whether every file declared in `.ai-rules/cache/skill-manifest.json` still exists
+- warns if a skill layout exists but the manifest is missing
+- for Claude Code, warns when `.claude/settings.local.json` does not allow `Bash(ai-law:*)`
+
+Claude Code `SKILL.md` bodies omit `allowed-tools` in frontmatter (some builds reject `Bash(tool:*)` patterns). If `/law-*` never appears in completion, try an official client build; proxy stacks may not load project skills.
+
+### Claude Code: `ai-law` Bash permissions
+
+Skills use `` !`ai-law …` `` **dynamic context injection**, which is still checked against **Bash** permissions.
+
+Running **`ai-law setup --provider claude-code --write`** merges **`Bash(ai-law:*)`** into **`.claude/settings.local.json`** → `permissions.allow` (creates the file if needed; skips if that rule or `Bash(ai-law *)` is already present).
+
+If you still see *Shell command permission check failed*, add the same rule to **`.claude/settings.json`**, use **`/permissions`** in Claude Code, or approve once with **always allow**. See [Claude Code permissions](https://code.claude.com/docs/en/permissions).
+
+See also: [Cursor skills](https://cursor.com/docs/skills), [Claude Code slash commands / skills](https://docs.claude.com/en/docs/claude-code/slash-commands).
 
 ## Development Notes
 

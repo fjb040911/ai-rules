@@ -1,7 +1,10 @@
-function buildLogicPrompt({ config, ruleIR, validator, logicContext, localeMap, reportSchemaText }) {
+const { getLogicArtifactNames } = require("./artifacts");
+
+function buildLogicPrompt({ config, ruleIR, validator, logicContext, profile, localeMap, reportSchemaText }) {
   const prompt = resolvePromptConfig(config, localeMap);
   const activeRules = (ruleIR || []).filter((rule) => rule.enabled);
-  const focus = resolveLogicFocus(config);
+  const focus = resolveLogicFocus(config, profile);
+  const artifactNames = getLogicArtifactNames(profile);
 
   const sections = [
     prompt.logicSystem,
@@ -28,7 +31,7 @@ function buildLogicPrompt({ config, ruleIR, validator, logicContext, localeMap, 
     "",
     "Output requirements:",
     `Return strict JSON only with shape: ${reportSchemaText}`,
-    "- Save the final JSON result as ai-logic-report.json in the project root after completing the logic inspection.",
+    `- Save the final JSON result as ${artifactNames.outputFile} in the project root after completing the logic inspection.`,
     `- Focus on ${focus.outputFocus}.`,
     "- Prefer concrete cross-file reasoning over generic framework advice.",
     "- If no material logic risks are found, return an empty risks array.",
@@ -51,9 +54,9 @@ function resolvePromptConfig(config, localeMap) {
   };
 }
 
-function resolveLogicFocus(config) {
+function resolveLogicFocus(config, profile) {
   const stack = (config && config.stack) || "unknown";
-  if (stack === "c-cpp") {
+  if (profile === "native" || stack === "c-cpp") {
     return {
       reviewFocus: [
         "resource ownership and lifetime transitions",
@@ -65,6 +68,20 @@ function resolveLogicFocus(config) {
       ],
       outputFocus:
         "native-code vulnerabilities such as ownership/lifetime mistakes, unchecked critical returns, inconsistent lock or atomic protocols, parser length/offset/state validation gaps, privileged-operation trust-boundary failures, and partial cleanup or rollback holes",
+    };
+  }
+
+  if (profile === "model") {
+    return {
+      reviewFocus: [
+        "model input shape, dtype, device, and batch contracts",
+        "precision mode, device fallback, and runtime drift",
+        "checkpoint strictness, remap, and compatibility handling",
+        "train/eval mode, stochastic layers, and seed control",
+        "tokenizer, label map, threshold, and postprocess consistency",
+      ],
+      outputFocus:
+        "model-pipeline vulnerabilities such as shape or dtype drift, silent precision/device fallback, checkpoint compatibility mistakes, train/eval mode confusion, stochastic-state leakage, and evaluation or postprocess contract mismatches",
     };
   }
 
