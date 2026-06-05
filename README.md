@@ -207,6 +207,108 @@ npm install
 npm test
 ```
 
+
+
+---
+
+## FAQ (Frequently Asked Questions)
+
+### What is AI-RULES?
+
+AI-RULES is a **rule-aware CLI for AI-assisted coding governance**. It turns project rules into structured guidance that AI coding agents can follow before code reaches review, reducing repetitive violations and making reviews faster.
+
+### Why use AI-RULES?
+
+| Benefit | Description |
+|---------|-------------|
+| **Architecture compliance** | AI-generated code follows your architecture and layering rules from the start |
+| **Faster reviews** | Repeated violations are encoded once instead of explained every time |
+| **Deterministic prompts** | Rules, paths, severity, and report schema are structured |
+| **Flexible layouts** | Non-standard repository layouts handled through config.json path aliases |
+| **Cross-agent support** | Stable audit and repair workflows across Codex, Cursor, Claude Code, etc. |
+
+### What does AI-RULES do?
+
+| Feature | Description |
+|---------|-------------|
+| **Initialize templates** | Reusable rule templates for different stacks |
+| **Parse rules** | `.ai-rules/.ai-rules.md` and `rules-config.json` |
+| **Merge extends chains** | Rules and config inheritance |
+| **Resolve AST config** | Template defaults, detected project config, local overrides |
+| **Collect evidence** | Regex, import/include, count rules (function-lines, file-lines) |
+| **AST-backed rules** | First supported slice of frontend JS/TS/Vue rules |
+| **Config thresholds** | Active parameterized rule behavior |
+| **Config exceptions** | Suppress known-safe files per rule pattern |
+| **Generate audit prompts** | Rule-aware prompts instead of static text |
+| **Logic inspection** | Business-logic inspection prompt for logic-risk review |
+| **Validate reports** | Normalize and validate `ai-rule-report.json` |
+| **Generate fix prompts** | Stronger fix prompts using report and local rule metadata |
+
+### What is Logic Risk Inspection?
+
+AI-RULES generates a separate business-logic inspection flow:
+
+- `ai-law inspect-logic`
+- `.ai-rules/cache/logic-audit-context.json`
+- `.ai-rules/cache/ai-logic-report.template.json`
+
+Designed for logic vulnerabilities that are harder to reduce to framework misuse:
+
+| Risk Type | Examples |
+|-----------|----------|
+| **Authorization** | Missing authorization or ownership checks |
+| **State transitions** | Unsafe state transitions |
+| **Idempotency** | Idempotency or replay gaps |
+| **Tenant isolation** | Tenant-isolation mistakes |
+| **Trust boundary** | Problems between input validation, permissions, persistence |
+
+### What about native C/C++ projects?
+
+For native `c-cpp` projects, the logic review shifts toward:
+
+| Risk Type | Examples |
+|-----------|----------|
+| **Resource ownership** | Ownership and lifetime transitions |
+| **Error handling** | Unchecked critical return values and error propagation |
+| **Buffer safety** | Lifetime vs buffer vs aliasing vs allocation discipline |
+| **Locking** | Locking vs container vs iterator lifetime interactions |
+| **Null deref** | Null dereference vs lifetime rule interactions |
+| **FFI safety** | FFI vs pointer safety |
+
+### How do I get started?
+
+```bash
+# Install
+npm install -g ai-rules
+
+# Initialize rules for your stack
+ai-law init --template <stack>
+
+# Run audit
+ai-law audit
+
+# Generate fix prompts
+ai-law fix
+```
+
+### What is the rules compiler direction?
+
+AI-RULES is evolving from "rules as text" toward "rules as compiled artifact" with:
+
+- Rule metadata
+- Validator decisions
+- Evidence references
+- Repair guidance
+
+### Is AI-RULES free and open source?
+
+Check the repository for license details.
+
+### Where can I get help?
+
+- 💬 [GitHub Issues](https://github.com/fjb040911/ai-rules/issues)
+- 📖 [Documentation](https://github.com/fjb040911/ai-rules)
+
 ## Quick Start
 
 ```bash
