@@ -4,500 +4,245 @@
 
 # AI-RULES
 
-AI-RULES is a rule-aware CLI for AI-assisted coding governance. It turns project rules in Markdown into structured rule metadata, lightweight local evidence, and deterministic audit/fix prompts so AI coding agents follow your architecture, design patterns, and UI standards more consistently.
+**Give your AI coding agent project rules it can review and repair against.**
 
-At a broader product level, AI-RULES is evolving toward a practical rules compiler for AI coding workflows: project-authored rules are compiled into Rule IR, validator artifacts, evidence references, and repair hints that richer agent runtimes can consume later.
+AI-RULES turns your team's architecture and safety conventions into reusable rules, local code evidence, and focused audit and fix prompts. Keep those conventions in your repository and use them across AI coding tools.
+
+The npm package and CLI command are named `ai-law`. Requires Node.js 18 or later. MIT licensed.
+
+[English](README.md) | [简体中文](README.zh-CN.md)
 
 ## Why AI-RULES
 
-AI coding agents are powerful, but they often write "generally correct" code instead of code that fits your repository's real architecture. They may call data layers from UI components, bypass service boundaries, ignore project-specific directories, leak secrets in logs, or return audit reports in shapes that downstream repair flows cannot reliably consume.
+An AI agent can produce working code that still breaks your project's conventions. A React component makes a network request directly. A Spring controller reaches into a repository. A driver drops an error-path cleanup. A model pipeline silently changes precision.
 
-AI-RULES gives those agents a project-local operating contract before code reaches review, CI, or merge gates. It packages your engineering standards into `.ai-rules.md`, `rules-config.json`, and `config.json`, then turns them into rule-aware audit and fix prompts with enabled rules, severity thresholds, local evidence, path aliases, exceptions, and repair guidance.
+Writing those expectations into a project rule set gives each review a concrete starting point. AI-RULES compiles the rules, collects supported local evidence, and builds a prompt with rule IDs, severity, and a report schema.
 
-The practical benefits are:
+| What you need | What AI-RULES provides |
+| --- | --- |
+| Stop repeating the same review comments | Versioned Markdown rules with intent, requirements, and repair guidance |
+| Review against your actual directory layout | Path aliases in `config.json`, with warnings for missing paths |
+| Investigate findings with concrete evidence | Local matches with file locations and stable evidence references |
+| Carry an audit into a focused repair | A JSON report that can be validated and used to generate issue-specific fix prompts |
+| Keep large reviews manageable | Context modes, evidence budgets, and review focus by rule or scope |
 
-- AI-generated code is more likely to follow your architecture and layering rules from the start.
-- Reviews become faster because repeated violations are encoded once instead of explained every time.
-- Prompts become more deterministic because rules, paths, severity, and report schema are structured.
-- Non-standard repository layouts are handled through `config.json` path aliases instead of editing every rule.
-- Audit and repair workflows become more stable across Codex, Cursor, Claude Code, or any prompt-driven coding setup.
+Start with a built-in template, adapt its paths, and add the conventions your team already uses in review.
 
-In short: repository governance tools protect the merge boundary; AI-RULES guides the AI while it is still writing and repairing code.
+## Run your first review
 
-## Where It Is Going
-
-Today AI-RULES is already more than a static prompt pack:
-
-- project rules are compiled into a normalized Rule IR
-- local evidence is linked with stable evidence IDs
-- validator artifacts are written alongside audit context
-- audit, validation, and fix flows consume the same compiled rule model
-
-The longer-term direction is to keep moving from "rules as text" toward "rules as compiled execution context" so future agent runtimes can reason over:
-
-- rule metadata
-- validator decisions
-- evidence references
-- repair guidance
-
-That is the practical meaning of the rules compiler direction for this project.
-
-## What It Does
-
-- Initializes reusable rule templates for different stacks
-- Parses `.ai-rules/.ai-rules.md` and `rules-config.json`
-- Merges `extends` chains for rules and config
-- Resolves high-level AST config from template defaults, detected project config, and local AI-RULES overrides
-- Collects lightweight local evidence for `regex` and `import/include` style rules
-- Collects lightweight local evidence for minimal `count` rules such as `function-lines` and `params-count`
-- Collects AST-backed local evidence for a first supported slice of frontend JS/TS/Vue rules
-- Supports config-level `thresholds` for active parameterized rule behavior
-- Supports config-level `exceptions` to suppress known-safe files per rule pattern
-- Generates rule-aware audit prompts instead of static prompt text
-- Generates a separate business-logic inspection prompt and template for logic-risk review
-- Normalizes and validates `ai-rule-report.json`
-- Generates stronger fix prompts using both the report and local rule metadata
-
-## Logic Risk Inspection
-
-AI-RULES can now generate a separate business-logic inspection flow with:
-
-- `ai-law inspect-logic`
-- `.ai-rules/cache/logic-audit-context.json`
-- `.ai-rules/cache/ai-logic-report.template.json`
-
-This mode is designed for logic vulnerabilities that are harder to reduce to framework misuse alone, such as:
-
-- missing authorization or ownership checks
-- unsafe state transitions
-- idempotency or replay gaps
-- tenant-isolation mistakes
-- trust-boundary problems between input validation, permissions, and persistence
-
-For native `c-cpp` projects, the same command shifts its review model toward:
-
-- resource ownership and lifetime transitions
-- unchecked critical return values and error propagation
-- inconsistent lock or atomic protocols
-- parser length, offset, and state validation gaps
-- privileged file, process, or socket trust-boundary failures
-- partial cleanup and rollback inconsistencies
-
-The CLI does not claim deterministic local detection for all of these. Instead, it compiles the current rule context, validator output, candidate evidence, and high-risk context files into a focused prompt for AI-assisted logic review.
-
-## High-Value Built-In Coverage
-
-Current templates already cover a first batch of high-priority engineering rules in addition to the original architecture baseline.
-
-### Frontend / React / Vue
-
-- First AST-backed frontend local evidence is now supported for selected JS/TS rules
-- Electron and VS Code extension templates now extend the frontend foundation for desktop and extension-host scenarios
-- UI code must not call network or data layers directly
-- Raw HTML injection via `innerHTML` / `dangerouslySetInnerHTML` is flagged and can now produce AST-backed local evidence
-- Semantic XSS flows from untrusted rich content into DOM sinks are called out
-- Dynamic execution via `eval()` / `Function()` is flagged and can now produce AST-backed local evidence
-- Hardcoded frontend secrets / API keys are flagged
-- Third-party HTML script tags without SRI are flagged
-- Hooks must follow React hook call rules
-- React lists should not use array index as `key`, with AST-backed local evidence for supported React files
-- React effect-driven remote requests should use stable dependency control
-- Vue `computed` must stay pure
-- Vue props must not be mutated directly, with AST-backed local evidence for supported `.vue` files
-- Vue lists should not use loop index as `:key`, with AST-backed local evidence for supported `.vue` files
-- Direct DOM access in Vue components is discouraged
-
-### Python Base / FastAPI
-
-- Bare `except` and broad swallowed exceptions are discouraged
-- Mutable default arguments are flagged
-- Weak password hashing algorithms such as MD5/SHA1 are flagged
-- Logging patterns that may leak sensitive values are flagged
-- External HTTP calls should define explicit timeouts
-- Filesystem, database, cache, subprocess, and model-serving I/O should define bounded wait or timeout policies
-- Subprocess and shell invocation should preserve argument boundaries and avoid command injection
-- Python functions should stay below configured line-count thresholds
-- Python function signatures should stay below configured parameter-count thresholds
-- Model input boundaries should validate shape, dtype, device, and batch assumptions
-- Model precision/device fallback should not silently drift across fp32/fp16/bf16/int8 or CPU/GPU/accelerator paths
-- Model runtime mode, stochastic layers, and seed state should be explicit
-- Model and inference configuration should not silently fall back to implicit defaults
-- Checkpoint load/save/resume paths should validate strictness, remap assumptions, and version compatibility
-- Evaluation pipelines should keep tokenizer, label map, thresholds, and postprocess contracts consistent
-- FastAPI routes should not access repositories or DB sessions directly
-- SQL built through interpolation/concatenation in FastAPI code is flagged
-- FastAPI request logging must avoid tokens, cookies, auth headers, and raw credentials
-- FastAPI endpoints should use Pydantic input models
-- FastAPI endpoints should declare explicit `response_model`
-- List-style FastAPI endpoints should enforce pagination or limit bounds
-- Async paths should avoid blocking HTTP clients and `time.sleep`
-
-### Java / Spring
-
-- Controllers should not depend on repositories directly
-- Controllers should stay thin and avoid business branching/orchestration
-- `@Valid` should guard `@RequestBody` inputs
-- Overly permissive CORS is flagged
-- Exception handlers that may leak stack traces are flagged
-- Logging patterns that may expose credentials are flagged
-- Sensitive Spring endpoints should have explicit authn/authz coverage
-- Overly permissive Spring Security config such as broad `permitAll()` or global protection disablement is flagged
-- Write paths should define transaction boundaries
-- `@Transactional` should not live on controllers
-- Write-oriented service logic should keep explicit transaction semantics
-- Loops should not perform unbounded remote calls without batching, timeouts, and concurrency control
-- Business exceptions should stay distinct from system/infrastructure failures
-
-### Node.js / Express / NestJS
-
-- Node.js base templates now cover transport/service/repository layering
-- Sensitive logging, swallowed async errors, and missing outbound timeout discipline are flagged
-- Express templates focus on thin route handlers and explicit response/error control flow
-- NestJS templates focus on thin controllers and preventing direct repository-style injection into controllers
-
-### C / C++
-
-- Raw `new/delete` and unsafe C string/input APIs are flagged
-- Partially acquired resources should be released on failed init and early-return paths
-- DMA buffer, map/unmap, and cache-coherency lifecycles should stay explicit
-- Critical return values and status codes should not be ignored
-- Shared locks should follow consistent ordering and avoid deadlock-prone callback protocols
-- External file/process/socket targets should validate trust boundaries before privileged operations
-- Firmware, descriptor, and ring-response protocol fields should validate version/opcode/status/length before use
-- Core modules should include targeted tests
-
-## Current Scope
-
-AI-RULES is not a full static analysis engine yet.
-
-- `regex` and `import/include` detection can collect local evidence
-- minimal `count` detection can collect local evidence for `function-lines` and `params-count`
-- selected frontend `ast` rules can now produce parser-backed local evidence
-- unsupported `ast` rules and `semantic` rules remain AI-guided and treated as `ai-only`
-- The CLI helps structure context and outputs, while the AI still makes the final audit decision
-
-## Language Support
-
-Built-in locale files are available for:
-
-- `zh-CN`: Simplified Chinese, complete
-- `en`: English, complete
-- `zh-TW`: Traditional Chinese, partial, falls back to English
-- `ja`: Japanese, partial, falls back to English
-- `ko`: Korean, partial, falls back to English
-- `es`: Spanish, partial, falls back to English
-- `fr`: French, partial, falls back to English
-
-The partial locales currently translate the core template names and prompt instructions. Missing rule-level text automatically falls back to English so new languages remain usable while translations are expanded over time.
-
-## Installation
-
-Requires Node.js `>=18`.
-
-Install globally:
+Install the CLI:
 
 ```bash
 npm install -g ai-law
 ```
 
-Or for local development in this repository:
+Inside the project you want to review:
 
 ```bash
-npm install
-npm test
-```
-
-## Quick Start
-
-```bash
-cd your-project
-
-# 1. Initialize rules in the current project
 ai-law init
-
-# 2. Check that rules/config are valid
 ai-law doctor
-
-# 3. Generate a rule-aware audit prompt
 ai-law audit
-
-# 4. `audit` also writes local helper files by default
-#    - .ai-rules/cache/audit-context.json
-#    - .ai-rules/cache/rule-ir.json
-#    - .ai-rules/cache/rule-validator.json
-#    - .ai-rules/cache/ai-rule-report.template.json
-
-# 5. Or inspect the structured audit context directly
-ai-law audit --json
-
-# 6. Optionally force a fresh context dump
-ai-law audit --dump-context
-
-# 7. After your AI tool produces ai-rule-report.json, validate it
-ai-law validate-report
-
-# 8. Generate a fix prompt for one issue
-ai-law fix --issueId ISSUE-001
-
-# 9. Or generate a grouped fix prompt for the whole report
-ai-law fix --all --group-by-rule
 ```
 
-## Workflow
+`init` lets you select a language and project template. Before auditing, open `.ai-rules/config.json` and map its paths to your repository. `doctor` checks configuration, rule references, and installed skills.
 
-### 1. Initialize
+`audit` prints a generated prompt and attempts to copy it to your clipboard. Give that prompt to your AI coding agent. Ask the agent to review the code and save its final JSON as `ai-rule-report.json` in the project root.
 
-`ai-law init` creates a `.ai-rules/` directory in your project and materializes the selected template.
-
-Example layout:
-
-```text
-.ai-rules/
-├── .ai-rules.md
-├── rules-config.json
-├── config.json
-├── base/
-│   ├── .ai-rules.md
-│   ├── rules-config.json
-│   └── config.json
-└── cache/
-    ├── audit-context.json
-    ├── rule-ir.json
-    ├── rule-validator.json
-    └── ai-rule-report.template.json
-```
-
-### 2. Validate Local Rule Setup
-
-`ai-law doctor` validates:
-
-- `.ai-rules/` exists
-- `rules-config.json` can be loaded and merged through `extends`
-- the rules file can be parsed
-- `enabledRuleIds` point to real rules
-- rule scopes match config scopes
-- required rule fields exist
-
-Use `ai-law doctor --strict` to treat warnings as failures.
-
-### 3. Generate Audit Context
-
-`ai-law audit` now reads the current project rules and builds a prompt from:
-
-- merged config
-- parsed rules
-- enabled rule IDs
-- local evidence candidates
-- strict report schema requirements
-
-Useful variants:
+Once the report exists:
 
 ```bash
-ai-law audit --locale zh-CN
-ai-law audit --json
-ai-law audit --summary
-ai-law audit --dry-run
-ai-law audit --dump-context
+ai-law validate-report
+ai-law fix --issueId ISSUE-001
 ```
 
-`--json` prints the structured audit context instead of a prompt.
-
-By default, `ai-law audit` writes:
-
-- `.ai-rules/cache/audit-context.json`
-- `.ai-rules/cache/rule-ir.json`
-- `.ai-rules/cache/rule-validator.json`
-- `.ai-rules/cache/ai-rule-report.template.json`
-
-Use the generated prompt with your AI tool, then save the AI result as `ai-rule-report.json` in the project root.
-The cached audit context now includes stable `evidenceId` / `matchId` values so AI reports can reference concrete local evidence records.
-The validator cache now includes explicit per-rule validator results plus structured candidate violations for deterministic local evidence.
-
-`--dump-context` forces a fresh write of `.ai-rules/cache/audit-context.json`.
-`--summary` prints enabled-rule counts, local-vs-AI coverage, suppressed files, and configured thresholds.
-`--dry-run` prints include/exclude patterns, rule IDs that can run locally, AI-only rule IDs, and active exception patterns.
+Use an issue ID from your report. `fix` generates a repair prompt; your AI agent applies the edits. Review the changes and run the project's tests.
 
 <p align="center">
-  <img src="assets/report.png" alt="Example AI-RULES audit report output" width="880">
+  <img src="assets/report.png" alt="Example structured audit report" width="880">
 </p>
 
-Audit report example: the AI returns a structured `ai-rule-report.json` that can be validated and fed into the next repair step.
+Each finding ties the problem to a rule and gives the next repair step a stable issue ID.
 
-### Keep Review Context Small
+<p align="center">
+  <img src="assets/fix.png" alt="Example issue-specific repair prompt" width="880">
+</p>
 
-`audit` and `inspect-logic` default to `--context-mode balanced`. Every enabled rule in the review scope keeps its review requirement, while local evidence is prioritized by severity and limited to 12 rules, 3 matches per rule, and 240 characters per snippet. Rules without local matches still need AI review. `compact` uses rule summaries with limits of 6 / 2 / 160; `full` expands rule details and removes the default evidence limits.
+A fix prompt brings together the selected issue, rule requirements, and available evidence.
+
+## Use it inside your AI coding tool
+
+Generate reusable workflows with:
+
+```bash
+ai-law setup --provider claude-code --write
+```
+
+Replace `claude-code` with `cursor`, `codex`, `copilot`, or `custom` for the corresponding layout.
+
+| Workflow | CLI action | Report |
+| --- | --- | --- |
+| `law-audit` | `ai-law audit` | `ai-rule-report.json` |
+| `law-fix` | `ai-law fix --issueId <ISSUE_ID>` | Uses the architecture audit report |
+| `law-logic` | `ai-law inspect-logic --profile logic` | `ai-logic-report.json` |
+| `law-native` | `ai-law inspect-logic --profile native` | `ai-native-report.json` |
+| `law-model` | `ai-law inspect-logic --profile model` | `ai-model-report.json` |
+
+Invoke the generated `/law-*` workflows where your client supports them. For tools that require explicit skill selection, select the matching skill. Generic workflows can also be followed manually.
+
+| Provider | Generated files |
+| --- | --- |
+| `claude-code` | `.claude/skills/law-*/SKILL.md` |
+| `cursor` | `.cursor/skills/law-*/SKILL.md` |
+| `codex` | `$CODEX_HOME/skills/law-*/SKILL.md`, defaulting to `~/.codex/skills/` |
+| `copilot` | `.github/prompts/law-*.prompt.md` |
+| `custom` | `.ai-rules/skills/law-*/SKILL.md` |
+
+Re-run `setup --write` to update managed workflow content. It also removes legacy command files for the selected provider and records the installation in `.ai-rules/cache/skill-manifest.json`. `doctor` checks that the recorded files still exist.
+
+Claude Code workflows use dynamic CLI output injection. Setup adds `Bash(ai-law:*)` to `.claude/settings.local.json` under `permissions.allow`. If execution is blocked, check the client's permissions settings.
+
+## Templates for your stack
+
+Framework templates inherit their base rules through `extends`. You can add project rules and tune the enabled set.
+
+| Project family | Templates | Selected review topics |
+| --- | --- | --- |
+| Frontend | `frontend-base`, `react-js`, `react-ts`, `vue` | UI/service boundaries, unsafe HTML, dynamic execution, hooks, list keys, Vue props and computed purity |
+| Desktop and extensions | `electron`, `vscode-extension` | Desktop and extension-host conventions built on the frontend foundation |
+| Node.js | `nodejs-base`, `express`, `nestjs` | Transport/service/repository layering, async errors, sensitive logging, outbound timeouts |
+| Python and AI models | `python-base`, `python-fastapi` | Exception handling, subprocess boundaries, timeouts, input/output contracts, model and checkpoint consistency |
+| Java | `java-base`, `java-spring` | Thin controllers, input validation, security configuration, transaction boundaries, sensitive logging |
+| C / C++ | `c-cpp` | Resource lifetime, critical return values, lock ordering, DMA lifecycles, firmware/protocol validation |
+
+Rules provide both locally detectable patterns and guidance for AI reasoning. A topic listed here does not imply complete automatic detection.
+
+### Frontend AST evidence
+
+Selected JS, TS, React, and Vue rules use parser-backed local evidence. Current checks include:
+
+- Direct `fetch()` or `axios.*` calls in UI code
+- `innerHTML` and `dangerouslySetInnerHTML` usage
+- Dynamic execution with `eval()` or `Function()`
+- React and Vue list keys based on loop indexes
+- Vue props mutation in supported `.vue` script blocks
+- TypeScript `any` usage in TS/TSX files
+
+Python, Java, and C/C++ do not have a supported local AST backend in this release. Unsupported AST checks stay AI-guided rather than invoking a frontend parser.
+
+## Review logic, native code, and model pipelines
+
+Choose a profile for the risks you want to investigate:
+
+```bash
+ai-law inspect-logic --profile logic
+ai-law inspect-logic --profile native
+ai-law inspect-logic --profile model
+```
+
+| Profile | Review focus |
+| --- | --- |
+| `logic` | Authorization, ownership, state transitions, replay/idempotency, tenant isolation, workflow bypasses |
+| `native` | Ownership/lifetime, critical returns, lock protocols, parser boundaries, privileged operations, cleanup and rollback |
+| `model` | Shape/dtype/device contracts, precision fallback, checkpoint compatibility, train/eval mode, tokenizer and postprocessing consistency |
+
+Without `--profile`, C/C++ defaults to `native`, Python templates to `model`, and other stacks to `logic`. Use an explicit profile when you need a specific report filename.
+
+These commands assemble review prompts and report templates. The AI agent investigates the source and writes the report. Logic/native/model reports use a separate `risks` schema; `validate-report` and `fix` currently consume `ai-rule-report.json`.
+
+## Keep review context small
+
+Both `audit` and `inspect-logic` default to `balanced`. Rules in the selected review scope retain their requirements, including rules without local matches. Evidence is prioritized by rule severity.
+
+| Mode | Initial rule detail | Evidence rules | Matches/candidates per rule | Snippet/description characters |
+| --- | --- | --- | --- | --- |
+| `compact` | Rule summaries | 6 | 2 | 160 |
+| `balanced` | Summaries; audit expands rules with selected evidence | 12 | 3 | 240 |
+| `full` | Expanded rule details | Unlimited by default | Unlimited by default | Unlimited by default |
 
 ```bash
 ai-law audit --context-mode compact
 ai-law audit --rule ARCH-101 --context-mode full
 ai-law audit --scope ui --max-evidence-rules 8 --max-matches-per-rule 2 --max-snippet-chars 180
 ai-law inspect-logic --profile native --context-mode compact
-ai-law inspect-logic --profile model --rule <RULE_ID> --context-mode full
 ```
 
-`--rule` and `--scope` focus the prompt on exact enabled rule IDs / scopes; they can be combined. Invalid selectors and budget values produce errors. Budgets affect prompt output only: `--json` and the cache artifacts still contain the full scan data for report validation, fixes, or selective lookup. Prompts disclose omitted evidence; a limited prompt alone cannot establish complete project coverage. These are evidence limits, not a hard model-token limit: a large rule catalog or custom system prompt may still require focused reviews.
+`--rule` and `--scope` match exact enabled rule IDs and scope names. You can combine them. Review individual rules in full mode when you need more evidence.
 
-Newly generated skills use the command's prompt and read source files or individual rule details on demand, instead of automatically loading several overlapping cache files. Update existing skills with `ai-law setup --provider <provider> --write`. Avoid pasting full JSON caches alongside the prompt.
+Budgets affect prompt output. `--json` and cached artifacts keep the full collected data for validation and fixes. Prompts disclose omitted evidence; omitted matches do not establish that the code is safe. These limits control evidence size rather than enforce a hard token ceiling.
 
-上下文优化：默认 `balanced` 保留审查范围内所有启用规则的要求，限制证据数量与片段长度；`compact` 进一步缩减，`full` 提供完整细节。可用 `--rule` / `--scope` 分批审查，再按需查看相关源码。完整 JSON 缓存仍保留，供报告校验和修复使用。已有 skills 需要重新执行 `setup --write` 更新，避免重复加载缓存。
+Generated skills use the prompt first and read source files or detailed rule evidence on demand. Refresh older skills with `setup --write`. Pasting full cache files alongside the prompt repeats much of the same context.
 
-### 4. Validate The AI Report
+## Adapt the rules to your repository
 
-After your AI tool returns `ai-rule-report.json`, run:
+The generated files have separate jobs:
 
-```bash
-ai-law validate-report
-```
+| File | Purpose |
+| --- | --- |
+| `.ai-rules/.ai-rules.md` | Rule definitions, intent, detection hints, and repair guidance |
+| `.ai-rules/rules-config.json` | Enabled rules, scopes, severity threshold, inheritance, and scan options |
+| `.ai-rules/config.json` | Project-specific overrides, including paths and parser settings |
+| `.ai-rules/cache/` | Generated context, evidence, validator output, and report templates |
 
-This command normalizes legacy or drifted report shapes into a stable structure and checks for issues like:
+Local `config.json` overrides the merged rules configuration. Adjust aliases and include/exclude patterns to match the files you want reviewed.
 
-- missing `issueId`
-- missing `ruleId`
-- duplicate `issueId`
-- invalid `severity`
-- unknown `evidenceId` / `matchId` references when `.ai-rules/cache/audit-context.json` is available
-- unknown `ruleId` references when `.ai-rules/cache/rule-validator.json` is available
-- evidence references that belong to a different rule in cached validator output
+### Directory aliases
 
-You can inspect the normalized report with:
-
-```bash
-ai-law validate-report --json
-```
-
-### 5. Generate Fix Prompts
-
-`ai-law fix` now combines:
-
-- normalized report data
-- local rule metadata from `.ai-rules`
-- rule intent / requirement / fix guidance
-- context assets
-- report evidence and snippets when present
-
-When you run `ai-law fix --all`, issues are ordered deterministically:
-
-- `FATAL` before `WARN` before `INFO`
-- then by file and line
-- `--group-by-rule` keeps grouping while preserving stable ordering between groups
-
-Examples:
-
-```bash
-ai-law fix --issueId ISSUE-001
-ai-law fix --id ARCH-101
-ai-law fix --all
-ai-law fix --all --group-by-rule
-```
-
-<p align="center">
-  <img src="assets/fix.png" alt="Example AI-RULES fix prompt output" width="880">
-</p>
-
-Fix prompt example: `ai-law fix` turns one or more report entries into a focused, patch-oriented repair prompt with rule context and evidence.
-
-## Rule Model
-
-Rules are defined in `.ai-rules.md` using `RULE` blocks. The CLI currently parses fields such as:
-
-- `RULE`
-- `severity`
-- `scope`
-- `intent`
-- `fix`
-- `detect`
-- `prompt`
-- `context`
-- `extends`
-
-Example:
-
-```md
-### RULE: ARCH-101
-severity: FATAL
-scope: ui
-intent: UI components must not initiate network requests directly.
-
-detect:
-  regex: "fetch\\(|axios\\."
-  where: filePath in src/components/**
-fix: Move request logic into a service layer.
-prompt:
-  violation: Detected direct request logic in UI layer.
-  requirement: UI components must not contain request logic.
-  solution: Move requests to a service and reuse shared clients.
-context:
-  - src/services/
-  - src/api/client.ts
-```
-
-## Project Path Config
-
-Templates can provide an optional `.ai-rules/config.json` file for user-specific project layout overrides. This file is merged on top of `rules-config.json`, so users can adjust directory conventions without editing every rule.
-
-Example:
+A repository with a small directory structure can map several aliases to the same directory:
 
 ```json
 {
   "pathAliases": {
-    "@controller": "app/controllers",
-    "@service": "app/services",
-    "@repository": "app/repositories",
-    "@config": "app/config"
+    "@components": "src",
+    "@services": "src",
+    "@apiClient": "src"
   }
 }
 ```
 
-Rules can reference those aliases in `context`, `detect.where`, `detect.import`, and `detect.include`:
+Map each alias used by your chosen template to the corresponding real directory. If you remove an alias, update rules that reference it. `doctor` and `audit` warn when configured paths do not exist.
+
+Aliases resolve in rule `context` and supported detection paths. `context` identifies supporting files or directories; it does not define the entire review target. Supported `detect.where` expressions and scan include/exclude patterns determine local evidence collection.
+
+### Write a project rule
 
 ```md
+### RULE: CUSTOM-101
+severity: FATAL
+scope: ui
+intent: UI components must keep network requests in the service layer.
 detect:
-  include: "@repository/**"
-  where: filePath in @controller/**
+  regex: "fetch[(]|axios[.]"
+  where: filePath in @components/**
+fix: Move request logic into a service.
+prompt:
+  violation: Direct request logic found in the UI layer.
+  requirement: UI components must delegate requests to a service.
+  solution: Use a shared client from the service layer.
 context:
-  - @service
+  - @services
+  - @apiClient
 ```
 
-At audit/fix time, the CLI resolves aliases before collecting evidence or building prompts.
+Enable the rule ID and its scope in `rules-config.json`, then run `doctor`. Use stable rule IDs so reports and repairs can reference the same convention.
 
-`ai-law doctor` and `ai-law audit` warn prominently when a configured alias points to a path that does not exist. If this happens, open `.ai-rules/config.json` and adjust `pathAliases` to match your repository layout.
+### Configure thresholds and exceptions
 
-## Detection Support
+```json
+{
+  "thresholds": {
+    "maxFunctionLines": 80,
+    "maxParamsCount": 5
+  },
+  "exceptions": {
+    "ARCH-101": ["src/integrations/**"],
+    "SEC-*": ["__mocks__/**", "**/*.stories.tsx"]
+  }
+}
+```
 
-Current support in the CLI:
+Active count rules can reference these thresholds. Exceptions suppress matching files for supported local evidence checks.
 
-- `detect.regex`: local evidence collection supported
-- `detect.import`: local evidence collection supported
-- `detect.include`: local evidence collection supported
-- `detect.ast`: first frontend AST-backed rules now support local evidence
-- `detect.semantic`: AI-only for now
-
-Current AST-backed local evidence focuses on frontend JS/TS projects and covers the first narrow batch of rules:
-
-- direct network calls from UI entry code such as `fetch()` / `axios.*`
-- raw HTML injection such as `dangerouslySetInnerHTML` / `innerHTML`
-- dynamic code execution such as `eval()` / `Function()`
-- React list rendering keyed by loop index
-- Vue props mutation in `.vue` script blocks
-- Vue list rendering keyed by loop index in `.vue` templates
-- TypeScript `any` usage in TS/TSX files
-
-This means the CLI can now attach concrete local evidence for regex/import/include/count and a first slice of AST-backed frontend rules across React and Vue, while still allowing AI-guided review for higher-level semantic constraints and unsupported AST rules.
-
-The current templates intentionally mix:
-
-- fast local rules for obvious anti-patterns
-- semantic AI-guided rules for higher-level architectural or transactional reasoning
-
-## Config Extensions
-
-The config model now supports two rule-aware extensions:
-
-### `ast`
-
-Used for high-level AST backend orchestration. AI-RULES keeps this config intentionally small and merges it with detected project config at runtime.
-
-Example:
+### Configure frontend parsing
 
 ```json
 {
@@ -513,114 +258,34 @@ Example:
 }
 ```
 
-At runtime, AI-RULES resolves AST settings in this order:
+Parser settings merge in this order: template defaults, detected project configuration such as `tsconfig.json` or Babel configuration, then local overrides. Keep parser-specific configuration in its existing project files and use `config.json` for AI-RULES overrides.
 
-1. template defaults
-2. detected project config such as `tsconfig.json` / `.babelrc` / `package.json#babel`
-3. local `.ai-rules/config.json` overrides
+## Evidence and report boundaries
 
-### `thresholds`
+| Detection type | Current behavior |
+| --- | --- |
+| `regex` | Local pattern matches |
+| `import` / `include` | Local dependency/include evidence |
+| `count` | Local `function-lines` and `params-count` evidence |
+| Supported frontend `ast` checks | Parser-backed local evidence |
+| `semantic` and unsupported `ast` checks | AI-guided review |
 
-Used for configurable numeric limits that active local count rules can reference.
+The CLI compiles context locally and generates prompts; it does not call a hosted AI model to complete the audit. Your chosen AI tool determines how the supplied project context is processed.
 
-Example:
+Local evidence is a review candidate. AI review still needs source inspection and cross-file reasoning. Report validation checks structure and available rule/evidence references; it does not prove a finding is correct. Keep your tests, linters, security tools, and code review in the workflow.
 
-```json
-{
-  "thresholds": {
-    "maxFunctionLines": 80,
-    "maxParamsCount": 5,
-    "maxListLimit": 100
-  }
-}
+`audit` writes these artifacts by default:
+
+```text
+.ai-rules/cache/audit-context.json
+.ai-rules/cache/rule-ir.json
+.ai-rules/cache/rule-validator.json
+.ai-rules/cache/ai-rule-report.template.json
 ```
 
-### `exceptions`
+The AI-generated `ai-rule-report.json` uses schema version `1.1`, a project summary, and a `violations` array. Findings have unique `issueId` values, rule IDs, severity, locations, repair guidance, and optional evidence references. `validate-report` normalizes compatible legacy formats and checks required fields, duplicate IDs, and available rule/evidence relationships.
 
-Used to suppress known-safe files for matching rule IDs or rule ID patterns during local evidence collection.
-
-Example:
-
-```json
-{
-  "exceptions": {
-    "ARCH-101": [
-      "src/integrations/**"
-    ],
-    "SEC-*": [
-      "__mocks__/**",
-      "**/*.stories.tsx"
-    ]
-  }
-}
-```
-
-These exceptions currently affect local evidence collection for supported local detect modes.
-
-## Report Shape
-
-The audit prompt requests strict JSON with a normalized structure like:
-
-```json
-{
-  "version": "1.1",
-  "generatedAt": "2026-03-30T12:00:00Z",
-  "project": {
-    "cwd": ".",
-    "stack": "react-ts"
-  },
-  "summary": {
-    "total": 1,
-    "fatal": 0,
-    "warn": 1,
-    "info": 0
-  },
-  "violations": [
-    {
-      "issueId": "ISSUE-001",
-      "ruleId": "ARCH-101",
-      "severity": "WARN",
-      "confidence": 0.82,
-      "file": "src/pages/Home.tsx",
-      "line": 12,
-      "snippet": "const data = fetch('/api')",
-      "description": "Direct network request found in UI layer.",
-      "fixSuggestion": "Move request logic into services.",
-      "repairPrompt": "Provide a minimal patch...",
-      "evidence": {
-        "source": "local-regex",
-        "matchedBy": "detect.regex"
-      },
-      "context": [
-        "src/services/"
-      ]
-    }
-  ]
-}
-```
-
-## Templates
-
-Current templates:
-
-- `frontend-base`
-  - `react-js`
-  - `react-ts`
-  - `vue`
-  - `electron`
-  - `vscode-extension`
-- `nodejs-base`
-  - `express`
-  - `nestjs`
-- `python-base`
-  - `python-fastapi`
-- `java-base`
-  - `java-spring`
-- `c-cpp`
-
-Branch templates inherit from base templates through `extends`.
-
-## CLI Commands
+## CLI reference
 
 ```bash
 ai-law init
@@ -636,61 +301,40 @@ ai-law -v
 ai-law -h
 ```
 
-## Agent skills & slash integration (`setup --write`)
+Prompt options for `audit` and `inspect-logic`:
 
-`ai-law setup --provider <name> --write` installs **Agent Skills**–style layouts where each tool expects them (YAML `name` / `description` / `argument-hint` + `SKILL.md`). Re-running `--write` **removes legacy paths** for that provider (e.g. old `.claude/commands/*.md`, `.cursor/commands/*.md`, `~/.codex/prompts/law-*.md`, `.ai-rules/slash-prompts/*.md`) so you do not get duplicate `/law-*` entries. The same command also writes `.ai-rules/cache/skill-manifest.json`, which records the generated provider layout, workflows, output files, and cache artifacts that each skill expects.
-
-| Provider | Output paths (project or home) |
-|----------|--------------------------------|
-| **claude-code** | `.claude/skills/law-audit/SKILL.md`, `law-fix`, `law-logic`, `law-native`, `law-model` |
-| **cursor** | `.cursor/skills/law-audit/SKILL.md`, `law-fix`, `law-logic`, `law-native`, `law-model` |
-| **codex** | `$CODEX_HOME/skills/.../SKILL.md` (default `~/.codex/skills/...`) |
-| **copilot** | `.github/prompts/law-audit.prompt.md` (GitHub Copilot prompts; no shared skills root) |
-| **custom** | `.ai-rules/skills/.../SKILL.md` (portable copy for other editors) |
-
-Behavior of the five workflows (invoke via `/law-audit`, `/law-fix`, `/law-logic`, `/law-native`, `/law-model` where the product supports skills):
-
-- **law-audit** — run `ai-law audit`, use cache artifacts, produce `ai-rule-report.json` (Claude Code body uses `` !`...` `` injection; Cursor/Codex/custom use prompt-backed steps).
-- **law-fix** — normalized report + `ai-law fix --issueId …` for one issue.
-- **law-logic** — `ai-law inspect-logic` + `ai-logic-report.json`.
-- **law-native** — `ai-law inspect-logic --profile native` + `ai-native-report.json`.
-- **law-model** — `ai-law inspect-logic --profile model` + `ai-model-report.json`.
-
-`ai-law doctor` now validates managed skill installs too:
-
-- checks whether every file declared in `.ai-rules/cache/skill-manifest.json` still exists
-- warns if a skill layout exists but the manifest is missing
-- for Claude Code, warns when `.claude/settings.local.json` does not allow `Bash(ai-law:*)`
-
-Claude Code `SKILL.md` bodies omit `allowed-tools` in frontmatter (some builds reject `Bash(tool:*)` patterns). If `/law-*` never appears in completion, try an official client build; proxy stacks may not load project skills.
-
-### Claude Code: `ai-law` Bash permissions
-
-Skills use `` !`ai-law …` `` **dynamic context injection**, which is still checked against **Bash** permissions.
-
-Running **`ai-law setup --provider claude-code --write`** merges **`Bash(ai-law:*)`** into **`.claude/settings.local.json`** → `permissions.allow` (creates the file if needed; skips if that rule or `Bash(ai-law *)` is already present).
-
-If you still see *Shell command permission check failed*, add the same rule to **`.claude/settings.json`**, use **`/permissions`** in Claude Code, or approve once with **always allow**. See [Claude Code permissions](https://code.claude.com/docs/en/permissions).
-
-See also: [Cursor skills](https://cursor.com/docs/skills), [Claude Code slash commands / skills](https://docs.claude.com/en/docs/claude-code/slash-commands).
-
-## Development Notes
-
-Current implementation layers:
-
-- `cli/src/core/config`: config loading and `extends` merge
-- `cli/src/core/rules`: rule parsing and validation
-- `cli/src/core/evidence`: local evidence collection
-- `cli/src/core/prompt`: audit prompt assembly
-- `cli/src/core/report`: report normalization and schema
-
-Run tests:
-
-```bash
-npm test
+```text
+--context-mode compact|balanced|full
+--rule <rule_id>
+--scope <scope>
+--max-evidence-rules <n>
+--max-matches-per-rule <n>
+--max-snippet-chars <n>
 ```
 
-## Docs
+Use `audit --summary` for coverage counts, `audit --dry-run` for the local/AI review plan, and `audit --json` for full structured context. `--dump-context` explicitly rewrites the cache. `doctor --strict` treats warnings as failures.
 
-- English design spec: [design/design-spec-en.md](design/design-spec-en.md)
-- 中文设计文档: [design/design-spec-zh.md](design/design-spec-zh.md)
+## Languages
+
+Rule and prompt locales include `en`, `zh-CN`, `zh-TW`, `ja`, `ko`, `es`, and `fr`. English and Simplified Chinese have complete locale files. The remaining locales are partial; missing strings fall back to English.
+
+Choose a language during initialization or pass `--locale` when generating prompts.
+
+## The rules compiler direction
+
+AI-RULES compiles project-authored Markdown into normalized Rule IR, validator decisions, evidence references, and repair hints. Audit and fix workflows share that rule model.
+
+The next stages are described in the [version evolution plan](docs/version-evolution-plan.md). The current CLI already produces these artifacts for agents; broader execution and enforcement remain roadmap work.
+
+## Development and design
+
+```bash
+npm install
+npm test
+node cli/src/index.js --help
+```
+
+- [Design specification](design/design-spec-en.md)
+- [Architecture evolution](docs/演进方向.md)
+- [Version evolution plan](docs/version-evolution-plan.md)
+- [License information](package.json)
