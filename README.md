@@ -323,6 +323,24 @@ The validator cache now includes explicit per-rule validator results plus struct
 
 Audit report example: the AI returns a structured `ai-rule-report.json` that can be validated and fed into the next repair step.
 
+### Keep Review Context Small
+
+`audit` and `inspect-logic` default to `--context-mode balanced`. Every enabled rule in the review scope keeps its review requirement, while local evidence is prioritized by severity and limited to 12 rules, 3 matches per rule, and 240 characters per snippet. Rules without local matches still need AI review. `compact` uses rule summaries with limits of 6 / 2 / 160; `full` expands rule details and removes the default evidence limits.
+
+```bash
+ai-law audit --context-mode compact
+ai-law audit --rule ARCH-101 --context-mode full
+ai-law audit --scope ui --max-evidence-rules 8 --max-matches-per-rule 2 --max-snippet-chars 180
+ai-law inspect-logic --profile native --context-mode compact
+ai-law inspect-logic --profile model --rule <RULE_ID> --context-mode full
+```
+
+`--rule` and `--scope` focus the prompt on exact enabled rule IDs / scopes; they can be combined. Invalid selectors and budget values produce errors. Budgets affect prompt output only: `--json` and the cache artifacts still contain the full scan data for report validation, fixes, or selective lookup. Prompts disclose omitted evidence; a limited prompt alone cannot establish complete project coverage. These are evidence limits, not a hard model-token limit: a large rule catalog or custom system prompt may still require focused reviews.
+
+Newly generated skills use the command's prompt and read source files or individual rule details on demand, instead of automatically loading several overlapping cache files. Update existing skills with `ai-law setup --provider <provider> --write`. Avoid pasting full JSON caches alongside the prompt.
+
+上下文优化：默认 `balanced` 保留审查范围内所有启用规则的要求，限制证据数量与片段长度；`compact` 进一步缩减，`full` 提供完整细节。可用 `--rule` / `--scope` 分批审查，再按需查看相关源码。完整 JSON 缓存仍保留，供报告校验和修复使用。已有 skills 需要重新执行 `setup --write` 更新，避免重复加载缓存。
+
 ### 4. Validate The AI Report
 
 After your AI tool returns `ai-rule-report.json`, run:

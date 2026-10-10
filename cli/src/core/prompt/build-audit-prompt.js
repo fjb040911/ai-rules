@@ -1,13 +1,20 @@
-function buildAuditPrompt({ config, rules, evidence, localeMap, reportSchemaText }) {
+const { resolveContextOptions, selectRules, budgetEvidence, contextGuidance } = require("./context-budget");
+
+function buildAuditPrompt({ config, rules, evidence, localeMap, reportSchemaText, contextOptions }) {
+  const options = resolveContextOptions(contextOptions);
   const promptConfig = resolvePromptConfig(config, localeMap);
   const enabledRules = new Set(config.enabledRuleIds || []);
-  const activeRules = rules.filter((rule) => enabledRules.has(rule.id));
-  const evidenceByRule = new Map(evidence.map((item) => [item.ruleId, item]));
+  const activeRules = selectRules(rules.filter((rule) => enabledRules.has(rule.id)), options);
+  const budget = budgetEvidence(evidence, activeRules, options);
+  const evidenceByRule = new Map(budget.evidence.map((item) => [item.ruleId, item]));
+  const detailedIds = new Set(budget.evidence.map((item) => item.ruleId));
 
   const sections = [
     promptConfig.auditSystem,
     "",
     promptConfig.auditUser,
+    "",
+    ...contextGuidance(options, "ai-law audit", `Omitted evidence rules=${budget.omittedRules}, matches=${budget.omittedMatches}.`),
     "",
     "Project config summary:",
     `- stack: ${config.stack || "unknown"}`,
@@ -16,14 +23,15 @@ function buildAuditPrompt({ config, rules, evidence, localeMap, reportSchemaText
     `- exclude paths: ${formatList((config.detectOptions && config.detectOptions.exclude) || [])}`,
     `- scopes: ${formatList(config.scopes || [])}`,
     `- thresholds: ${formatObject(config.thresholds)}`,
+    `- path aliases: ${JSON.stringify(config.pathAliases || {})}`,
     `- exception rules: ${formatExceptionSummary(config.exceptions)}`,
     `- ast backend: ${formatAstConfig(config.resolvedAstConfig)}`,
     "",
     "Resolved rules:",
-    ...buildRuleSections(activeRules),
+    ...buildRuleSections(activeRules, options, detailedIds),
     "",
     "Local evidence candidates:",
-    ...buildEvidenceSections(activeRules, evidenceByRule),
+    ...buildEvidenceSections(options.mode === "full" ? activeRules : activeRules.filter((rule) => evidenceByRule.has(rule.id)), evidenceByRule),
     "",
     "Output requirements:",
     `Return strict JSON only with shape: ${reportSchemaText || "{}"}`,
@@ -50,10 +58,15 @@ function resolvePromptConfig(config, localeMap) {
   };
 }
 
-function buildRuleSections(rules) {
+function buildRuleSections(rules, options, detailedIds) {
   const lines = [];
   for (const rule of rules) {
     lines.push(`### ${rule.id}`);
+    if (options.mode !== "full" && !(options.mode === "balanced" && detailedIds.has(rule.id))) {
+      lines.push(`- ${rule.severity}/${rule.scope}: ${(rule.prompt && rule.prompt.requirement) || rule.intent}`);
+      if ((rule.context || []).length) lines.push(`- context assets: ${formatList(rule.context)}`);
+      continue;
+    }
     lines.push(`- severity: ${rule.severity}`);
     lines.push(`- scope: ${rule.scope}`);
     lines.push(`- intent: ${rule.intent}`);
@@ -96,7 +109,7 @@ function buildEvidenceSections(rules, evidenceByRule) {
       lines.push("  matches: none");
       continue;
     }
-    for (const match of item.matches.slice(0, 5)) {
+    for (const match of item.matches) {
       const location = match.line ? `${match.file}:${match.line}` : match.file;
       lines.push(`  - ${location}${match.matchId ? ` [${match.matchId}]` : ""}`);
       lines.push(`    snippet: ${match.snippet}`);
