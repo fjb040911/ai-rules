@@ -9,8 +9,10 @@ const { runRuleValidator } = require("./core/validator/run-rule-validator");
 const { getLogicReportSchemaText, buildLogicReportTemplate } = require("./core/logic/schema");
 const { getLogicArtifactNames } = require("./core/logic/artifacts");
 const { buildLogicPrompt } = require("./core/logic/build-logic-prompt");
+const { parseContextOptions, selectRules } = require("./core/prompt/context-budget");
 
 async function runInspectLogic(argv) {
+  const contextOptions = parseContextOptions(argv);
   const locale = parseLocaleArg(argv) || (await readDefaultLocale()) || "en";
   const profile = parseProfileArg(argv);
   const localeMap = await readLocaleMap(locale);
@@ -25,6 +27,7 @@ async function runInspectLogic(argv) {
   }
 
   printFindings(context.findings.filter((item) => item.level === "warn"));
+  selectRules(context.ruleIR.filter((rule) => rule.enabled), contextOptions);
   await writeLogicArtifacts(process.cwd(), context, { forceContextWrite: dumpContext });
 
   if (outputJson) {
@@ -33,6 +36,7 @@ async function runInspectLogic(argv) {
   }
 
   const prompt = buildLogicPrompt({
+    contextOptions,
     config: context.config,
     ruleIR: context.ruleIR,
     validator: context.validator,

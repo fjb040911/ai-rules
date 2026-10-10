@@ -49,7 +49,7 @@ function getSkillDefinition(command) {
     },
     logic: {
       name: "law-logic",
-      execution: "ai-law inspect-logic --locale <locale>",
+      execution: "ai-law inspect-logic --locale <locale> --profile logic",
       outputFile: "ai-logic-report.json",
       cacheArtifacts: [
         ".ai-rules/cache/logic-audit-context.json",

@@ -8,8 +8,10 @@ const { validateRules } = require("./core/rules/validate-rules");
 const { runRuleValidator } = require("./core/validator/run-rule-validator");
 const { buildAuditPrompt } = require("./core/prompt/build-audit-prompt");
 const { getReportSchemaText, buildReportTemplate } = require("./core/report/schema");
+const { parseContextOptions, selectRules } = require("./core/prompt/context-budget");
 
 async function runAudit(argv) {
+  const contextOptions = parseContextOptions(argv);
   const locale = parseLocaleArg(argv) || (await readDefaultLocale()) || "en";
   const localeMap = await readLocaleMap(locale);
   const outputJson = argv.includes("--json");
@@ -25,6 +27,7 @@ async function runAudit(argv) {
   }
 
   printFindings(context.findings.filter((item) => item.level === "warn"));
+  selectRules(context.ruleIR.filter((rule) => (context.config.enabledRuleIds || []).includes(rule.id)), contextOptions);
 
   await writeAuditArtifacts(process.cwd(), context, { forceContextWrite: dumpContext });
 
@@ -44,6 +47,7 @@ async function runAudit(argv) {
   }
 
   const prompt = buildAuditPrompt({
+    contextOptions,
     config: context.config,
     rules: context.ruleIR,
     evidence: context.evidence,

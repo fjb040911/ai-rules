@@ -1,8 +1,10 @@
 const { getLogicArtifactNames } = require("./artifacts");
+const { resolveContextOptions, selectRules, truncate, contextGuidance } = require("../prompt/context-budget");
 
-function buildLogicPrompt({ config, ruleIR, validator, logicContext, profile, localeMap, reportSchemaText }) {
+function buildLogicPrompt({ config, ruleIR, validator, logicContext, profile, localeMap, reportSchemaText, contextOptions }) {
+  const options = resolveContextOptions(contextOptions);
   const prompt = resolvePromptConfig(config, localeMap);
-  const activeRules = (ruleIR || []).filter((rule) => rule.enabled);
+  const activeRules = selectRules((ruleIR || []).filter((rule) => rule.enabled), options);
   const focus = resolveLogicFocus(config, profile);
   const artifactNames = getLogicArtifactNames(profile);
 
@@ -11,23 +13,26 @@ function buildLogicPrompt({ config, ruleIR, validator, logicContext, profile, lo
     "",
     prompt.logicUser,
     "",
+    ...contextGuidance(options, `ai-law inspect-logic${profile ? ` --profile ${profile}` : ""}`),
+    "",
     "Project logic risk summary:",
     `- stack: ${config.stack || "unknown"}`,
     `- severity threshold: ${config.severityThreshold || "INFO"}`,
     `- include paths: ${formatList((config.detectOptions && config.detectOptions.include) || [])}`,
     `- exclude paths: ${formatList((config.detectOptions && config.detectOptions.exclude) || [])}`,
+    `- path aliases: ${JSON.stringify(config.pathAliases || {})}`,
     `- review focus: ${formatList(focus.reviewFocus)}`,
     `- risk keywords: ${formatList(logicContext.riskKeywords)}`,
-    `- likely high-risk files: ${formatList(logicContext.highRiskFiles)}`,
+    `- likely high-risk files: ${formatList(logicContext.highRiskFiles.slice(0, options.mode === "full" ? Infinity : options.maxEvidenceRules))}`,
     `- validator local-evidence rules: ${validator.summary.localEvidenceRules}`,
     `- validator ai-review rules: ${validator.summary.aiReviewRules}`,
     `- validator candidate violations: ${validator.summary.validatorViolationCount}`,
     "",
     "High-risk rules to use as review anchors:",
-    ...buildRuleLines(activeRules),
+    ...buildRuleLines(activeRules, options),
     "",
     "Validator candidates to inspect carefully:",
-    ...buildValidatorLines(validator),
+    ...buildValidatorLines(validator, activeRules, options),
     "",
     "Output requirements:",
     `Return strict JSON only with shape: ${reportSchemaText}`,
@@ -98,7 +103,7 @@ function resolveLogicFocus(config, profile) {
   };
 }
 
-function buildRuleLines(rules) {
+function buildRuleLines(rules, options) {
   if (!rules.length) {
     return ["- (none)"];
   }
@@ -111,14 +116,25 @@ function buildRuleLines(rules) {
     if (rule.validator && rule.validator.mode) {
       hints.push(`validator=${rule.validator.mode}`);
     }
-    return `- ${rule.id} [${rule.severity}/${rule.scope}] ${rule.intent} (${hints.join(", ")})`;
+    const requirement = (rule.prompt && rule.prompt.requirement) || rule.intent;
+    const summary = `- ${rule.id} [${rule.severity}/${rule.scope}] ${requirement} (${hints.join(", ")})${(rule.context || []).length ? ` context=${formatList(rule.context)}` : ""}`;
+    if (options.mode !== "full") return summary;
+    return [summary, `  intent: ${rule.intent}`, `  fix: ${rule.fix || ""}`,
+      `  detect: ${JSON.stringify(rule.detect || {})}`, `  prompt: ${JSON.stringify(rule.prompt || {})}`,
+      `  context: ${formatList(rule.context || [])}`].join("\n");
   });
 }
 
-function buildValidatorLines(validator) {
+function buildValidatorLines(validator, rules, options) {
   const lines = [];
-  const results = (validator && validator.results) || [];
-  const violations = (validator && validator.violations) || [];
+  const ids = new Set(rules.map((rule) => rule.id));
+  const allResults = ((validator && validator.results) || []).filter((result) => ids.has(result.ruleId));
+  const violations = ((validator && validator.violations) || []).filter((item) => ids.has(item.ruleId));
+  const candidateIds = new Set(violations.map((item) => item.ruleId));
+  const rank = { FATAL: 4, ERROR: 3, WARN: 2, INFO: 1 };
+  const severityById = new Map(rules.map((rule) => [rule.id, rank[rule.severity] || 0]));
+  const eligible = options.mode === "full" ? allResults : allResults.filter((result) => candidateIds.has(result.ruleId) || result.evidenceCount > 0);
+  const results = eligible.slice().sort((a, b) => severityById.get(b.ruleId) - severityById.get(a.ruleId)).slice(0, options.maxEvidenceRules);
   const violationByRule = new Map();
 
   for (const violation of violations) {
@@ -132,15 +148,17 @@ function buildValidatorLines(validator) {
     lines.push(
       `- ${result.ruleId}: decision=${result.decision}, mode=${result.evidenceMode || "n/a"}, evidenceCount=${result.evidenceCount || 0}`
     );
-    for (const violation of (violationByRule.get(result.ruleId) || []).slice(0, 3)) {
+    for (const violation of (violationByRule.get(result.ruleId) || []).slice(0, options.maxMatchesPerRule)) {
       lines.push(
         `  candidate: ${violation.issueId} files=${formatList(violation.files || [])} evidence=${formatList((violation.evidence && violation.evidence.evidenceIds) || [])}`
       );
-      lines.push(`  description: ${violation.description}`);
+      lines.push(`  description: ${truncate(violation.description, options.maxSnippetChars)}`);
     }
   }
 
-  return lines.length > 0 ? lines : ["- (none)"];
+  const shown = results.reduce((sum, result) => sum + Math.min((violationByRule.get(result.ruleId) || []).length, options.maxMatchesPerRule), 0);
+  lines.push(`- Omitted validator results=${allResults.length - results.length}, candidate violations=${violations.length - shown}.`);
+  return lines;
 }
 
 function formatList(values) {

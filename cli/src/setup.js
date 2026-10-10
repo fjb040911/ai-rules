@@ -352,7 +352,7 @@ function buildPromptBackedAgentSkill({
 
 function buildPromptBackedWorkflowBody({ command, localeMap, locale }) {
   if (command === "audit") {
-    return resolve(localeMap, "prompt.audit.cli");
+    return buildBudgetedWorkflow({ command, locale });
   }
   if (command === "fix") {
     return [
@@ -363,21 +363,20 @@ function buildPromptBackedWorkflowBody({ command, localeMap, locale }) {
     ].join("\n");
   }
   if (command === "logic") {
-    return resolve(localeMap, "prompt.logic.cli");
+    return buildBudgetedWorkflow({ command, locale });
   }
-  if (command === "native") {
-    return [
-      `Run: ai-law inspect-logic --locale ${locale} --profile native`,
-      "Use .ai-rules/cache/native-audit-context.json, rule-ir.json, rule-validator.json, and ai-native-report.template.json as the source of truth.",
-      "Return strict JSON only and save it as ai-native-report.json in the project root.",
-      "Focus on DMA, ownership/lifetime, return-value handling, protocol validation, and trust-boundary issues in native code.",
-    ].join("\n");
-  }
+  return buildBudgetedWorkflow({ command, locale });
+}
+
+function buildBudgetedWorkflow({ command, locale }) {
+  const execution = command === "audit" ? `audit --locale ${locale}` : `inspect-logic --locale ${locale} --profile ${command}`;
   return [
-    `Run: ai-law inspect-logic --locale ${locale} --profile model`,
-    "Use .ai-rules/cache/model-audit-context.json, rule-ir.json, rule-validator.json, and ai-model-report.template.json as the source of truth.",
-    "Return strict JSON only and save it as ai-model-report.json in the project root.",
-    "Focus on model input contracts, precision/device drift, checkpoint handling, runtime mode, and evaluation consistency.",
+    `Run: ai-law ${execution} --context-mode balanced`,
+    "Use the generated prompt as the initial review context. It includes the report schema and output filename.",
+    "Read relevant source files and callers on demand. Do not automatically load audit-context.json, rule-ir.json, or rule-validator.json; they duplicate the prompt and each other.",
+    `When a rule needs deeper review, run: ai-law ${execution} --rule <RULE_ID> --context-mode full`,
+    "Optional user focus narrows investigation, but all rules in the chosen review scope remain obligations. Disclose incomplete coverage or omitted evidence rather than claiming the project is safe.",
+    "Save the strict JSON report to the filename specified in the generated prompt.",
   ].join("\n");
 }
 
@@ -396,20 +395,19 @@ function buildClaudeCodeSkillContent({ command, slashName, description, locale }
           MANAGED_START,
           `# /${slashName}`,
           "",
-          `Run \`ai-law audit --locale ${locale}\` first, use the generated prompt and cache artifacts as the source of truth, then write the final strict JSON report to \`ai-rule-report.json\` in the project root.`,
+          `Run \`ai-law audit --locale ${locale}\` first, use the generated prompt as the review context, then write the final strict JSON report to \`ai-rule-report.json\` in the project root.`,
           "",
           "## Step 1: Run the local AI-RULES audit command",
           `!\`ai-law audit --locale ${locale}\``,
           "",
-          "## Step 2: Use the generated cache artifacts as context",
-          "- @.ai-rules/cache/audit-context.json",
-          "- @.ai-rules/cache/rule-ir.json",
-          "- @.ai-rules/cache/rule-validator.json",
-          "- @.ai-rules/cache/ai-rule-report.template.json",
+          "## Step 2: Review with bounded context",
+          "- Use the generated prompt above. Do not automatically load audit-context.json, rule-ir.json, or rule-validator.json; they duplicate the prompt and each other.",
+          "- Read relevant source files on demand. For deeper rule evidence, run `ai-law audit --rule <RULE_ID> --context-mode full`.",
+          "- Disclose incomplete coverage and omitted evidence.",
           "",
           "## Step 3: Produce the audit result",
           "- Return strict JSON only.",
-          "- Save the final JSON as @ai-rule-report.json in the project root.",
+          "- Save the final JSON as `ai-rule-report.json` in the project root.",
           "- If optional arguments are provided, treat `$ARGUMENTS` as extra audit focus context.",
           MANAGED_END,
         ]
@@ -451,7 +449,7 @@ function buildClaudeCodeSkillContent({ command, slashName, description, locale }
 function buildClaudeLogicBody({ command, locale }) {
   const mapping = {
     logic: {
-      run: `ai-law inspect-logic --locale ${locale}`,
+      run: `ai-law inspect-logic --locale ${locale} --profile logic`,
       contextFile: "logic-audit-context.json",
       templateFile: "ai-logic-report.template.json",
       outputFile: "ai-logic-report.json",
@@ -487,15 +485,14 @@ function buildClaudeLogicBody({ command, locale }) {
     "## Step 1: Run the local inspection command",
     `!\`${current.run}\``,
     "",
-    "## Step 2: Use the generated cache artifacts as context",
-    `- @.ai-rules/cache/${current.contextFile}`,
-    "- @.ai-rules/cache/rule-ir.json",
-    "- @.ai-rules/cache/rule-validator.json",
-    `- @.ai-rules/cache/${current.templateFile}`,
+    "## Step 2: Review with bounded context",
+    "- Use the generated prompt above; do not automatically load overlapping cache JSON files.",
+    `- For deeper rule evidence, run \`${current.run} --rule <RULE_ID> --context-mode full\`. Read relevant source files and callers on demand.`,
+    "- Disclose incomplete coverage and omitted evidence.",
     "",
     "## Step 3: Produce the inspection report",
     "- Return strict JSON only.",
-    `- Save the final JSON as @${current.outputFile} in the project root.`,
+    `- Save the final JSON as \`${current.outputFile}\` in the project root.`,
     `- ${current.focusNote}`,
   ];
 }

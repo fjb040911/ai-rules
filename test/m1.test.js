@@ -291,8 +291,9 @@ test("Claude Code slash files drive the local audit and fix workflow", async () 
   assert.doesNotMatch(auditContent, /^allowed-tools:/m);
   assert.match(auditContent, /^name: law-audit$/m);
   assert.match(auditContent, /!`ai-law audit --locale en`/);
-  assert.match(auditContent, /@\.ai-rules\/cache\/audit-context\.json/);
-  assert.match(auditContent, /@ai-rule-report\.json/);
+  assert.doesNotMatch(auditContent, /@\.ai-rules\/cache\//);
+  assert.match(auditContent, /--rule <RULE_ID> --context-mode full/);
+  assert.match(auditContent, /Save the final JSON as `ai-rule-report\.json`/);
 
   assert.match(fixContent, /argument-hint: <ISSUE_ID>/);
   assert.match(fixContent, /!`ai-law validate-report`/);
@@ -303,19 +304,19 @@ test("Claude Code slash files drive the local audit and fix workflow", async () 
   );
 
   assert.doesNotMatch(logicContent, /^allowed-tools:/m);
-  assert.match(logicContent, /!`ai-law inspect-logic --locale en`/);
-  assert.match(logicContent, /@\.ai-rules\/cache\/logic-audit-context\.json/);
-  assert.match(logicContent, /@ai-logic-report\.json/);
+  assert.match(logicContent, /!`ai-law inspect-logic --locale en --profile logic`/);
+  assert.doesNotMatch(logicContent, /@\.ai-rules\/cache\//);
+  assert.match(logicContent, /Save the final JSON as `ai-logic-report\.json`/);
 
   assert.match(nativeContent, /^name: law-native$/m);
   assert.match(nativeContent, /!`ai-law inspect-logic --locale en --profile native`/);
-  assert.match(nativeContent, /@\.ai-rules\/cache\/native-audit-context\.json/);
-  assert.match(nativeContent, /@ai-native-report\.json/);
+  assert.doesNotMatch(nativeContent, /@\.ai-rules\/cache\//);
+  assert.match(nativeContent, /Save the final JSON as `ai-native-report\.json`/);
 
   assert.match(modelContent, /^name: law-model$/m);
   assert.match(modelContent, /!`ai-law inspect-logic --locale en --profile model`/);
-  assert.match(modelContent, /@\.ai-rules\/cache\/model-audit-context\.json/);
-  assert.match(modelContent, /@ai-model-report\.json/);
+  assert.doesNotMatch(modelContent, /@\.ai-rules\/cache\//);
+  assert.match(modelContent, /Save the final JSON as `ai-model-report\.json`/);
 });
 
 test("Cursor Agent Skill layout uses SKILL.md frontmatter without Copilot command field", async () => {
@@ -1379,6 +1380,19 @@ test("audit supports summary and dry-run output", async () => {
   assert.match(dryRun.stdout, /local rules: COUNT-001, REGEX-001/);
   assert.match(dryRun.stdout, /ai-only rules: AI-001/);
   assert.match(dryRun.stdout, /REGEX-\*: fixtures\/\*\*/);
+
+  const focused = await execFileAsync(process.execPath, [cliPath, "audit", "--rule", "AI-001", "--context-mode", "compact"], { cwd: tempDir });
+  assert.match(focused.stdout, /Keep the boundary safe/);
+  assert.doesNotMatch(focused.stdout, /### COUNT-001/);
+  const scoped = await execFileAsync(process.execPath, [cliPath, "audit", "--scope", "security", "--max-evidence-rules", "0"], { cwd: tempDir });
+  assert.match(scoped.stdout, /### REGEX-001/);
+  assert.doesNotMatch(scoped.stdout, /snippet:/);
+  const fullJson = await execFileAsync(process.execPath, [cliPath, "audit", "--json", "--context-mode", "compact", "--max-evidence-rules", "0"], { cwd: tempDir });
+  const fullContext = JSON.parse(fullJson.stdout);
+  assert.equal(fullContext.ruleIR.length, 3);
+  assert.ok(fullContext.evidence.some((item) => item.matches.length > 0));
+  await assert.rejects(execFileAsync(process.execPath, [cliPath, "audit", "--rule", "missing"], { cwd: tempDir }), /No enabled rules/);
+  await assert.rejects(execFileAsync(process.execPath, [cliPath, "audit", "--max-snippet-chars", "-1"], { cwd: tempDir }), /non-negative integer/);
 
   const contextPath = path.join(aiRulesDir, "cache", "audit-context.json");
   const ruleIrPath = path.join(aiRulesDir, "cache", "rule-ir.json");
