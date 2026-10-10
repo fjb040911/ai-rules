@@ -1,0 +1,22 @@
+{
+  "locales": [
+    "en",
+    "zh-CN"
+  ],
+  "templates": [
+    "c-cpp",
+    "electron",
+    "express",
+    "frontend-base",
+    "java-base",
+    "java-spring",
+    "nestjs",
+    "nodejs-base",
+    "python-base",
+    "python-fastapi",
+    "react-js",
+    "react-ts",
+    "vscode-extension",
+    "vue"
+  ]
+}

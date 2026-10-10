@@ -8,9 +8,35 @@
 
 AI-RULES 将架构与安全规范整理为可复用的规则、本地代码证据和聚焦的审查、修复提示词。规则随项目一起维护，供不同的 AI 编程工具使用。
 
-npm 包名和 CLI 命令均为 `ai-law`，需要 Node.js 18 或更高版本，采用 MIT 许可。
+可直接安装 Agent skill；可选 npm 包名和 CLI 命令均为 `ai-law`，CLI 需要 Node.js 18 或更高版本。采用 MIT 许可。
 
 [English](README.md) | [简体中文](README.zh-CN.md)
+
+## 在 Agent 聊天中使用（无需 Node.js）
+
+仓库提供独立的 [`ai-rules` skill](skills/ai-rules/SKILL.md)。基础初始化、规则审查和修复使用 Agent 自带的文件工具，无需安装 Node.js 或 CLI。现有 `ai-law` 可选提供 AST 证据和确定性校验。
+
+在支持 skill 安装的 Agent 中输入：
+
+```text
+帮我安装 https://github.com/fjb040911/ai-rules 中的 skills/ai-rules skill
+```
+
+安装位置和刷新方式由客户端决定；没有安装工具时，将完整 `skills/ai-rules` 目录放入客户端支持的 skill 目录。首次安装请提供仓库地址，仅输入名称不保证能够发现本项目。结构化表单也依赖客户端能力，不支持时使用聊天问答。
+
+安装后，在目标项目中输入：
+
+```text
+使用 ai-rules 初始化
+使用 ai-rules 自动初始化，采用推荐配置
+使用 ai-rules 检查代码
+使用 ai-rules 检查当前改动
+使用 ai-rules 修复 ISSUE-001
+```
+
+初始化先检查已有 `.ai-rules/`，保留自定义规则和配置，再识别技术栈并适配真实目录。检查会阅读代码、输出 `ai-rule-report.json`，并在 `.ai-rules/cache/skill-review-coverage.json` 记录覆盖范围和限制；仅检查不会修改源码。基础模式的 Agent 一致性检查不等同于 CLI 严格校验。
+
+技能资产包含 14 种模板的英文与简体中文版本，均已渲染并展开继承。维护者修改 `templates/` 后运行 `npm run build:skill` 更新资产；`npm pack` 也会自动构建。构建需要 Node.js，安装后的基础 skill 不需要。
 
 ## 为什么使用 AI-RULES
 

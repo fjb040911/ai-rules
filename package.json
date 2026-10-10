@@ -20,14 +20,17 @@
     "templates",
     "design",
     "README.md",
-    "rule.md"
+    "rule.md",
+    "skills/ai-rules"
   ],
   "scripts": {
     "test": "node --test",
     "pack": "npm pack --dry-run",
     "version-patch": "npm version patch",
     "publish": "npm publish --access public",
-    "pack-and-publish": "npm run pack && npm run publish"
+    "pack-and-publish": "npm run pack && npm run publish",
+    "build:skill": "node scripts/build-skill-assets.js",
+    "prepack": "npm run build:skill"
   },
   "dependencies": {
     "@babel/parser": "^7.29.2",
