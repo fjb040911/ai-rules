@@ -8,9 +8,35 @@
 
 AI-RULES turns your team's architecture and safety conventions into reusable rules, local code evidence, and focused audit and fix prompts. Keep those conventions in your repository and use them across AI coding tools.
 
-The npm package and CLI command are named `ai-law`. Requires Node.js 18 or later. MIT licensed.
+Install the Agent skill directly, or use the optional `ai-law` CLI (Node.js 18+). MIT licensed.
 
 [English](README.md) | [简体中文](README.zh-CN.md)
+
+## Use in agent chat (no Node.js required)
+
+The standalone [`ai-rules` skill](skills/ai-rules/SKILL.md) uses the agent's file tools for initialization, project-rule review, and selected repairs. Node.js and the CLI are optional for users; an existing `ai-law` engine can add AST evidence and deterministic validation.
+
+Ask a skills-capable agent:
+
+```text
+Install the skills/ai-rules skill from https://github.com/fjb040911/ai-rules
+```
+
+Installation locations and refresh behavior depend on the host. Without an installer, copy the complete `skills/ai-rules` folder into a supported skill directory. A bare name does not guarantee discovery. Structured question UI is also host-dependent; conversational questions are the fallback.
+
+Then work in your target project:
+
+```text
+Use ai-rules to initialize this project
+Use ai-rules to initialize automatically with recommended settings
+Use ai-rules to check code
+Use ai-rules to review the current changes
+Use ai-rules to fix ISSUE-001
+```
+
+Initialization preserves existing rules and configuration and adapts aliases to actual paths. Review writes `ai-rule-report.json` and `.ai-rules/cache/skill-review-coverage.json`, documenting coverage and limitations without modifying source code. Agent consistency checks are not equivalent to CLI validation.
+
+Bundled assets provide 14 rendered, flattened templates in English and Simplified Chinese. Maintainers run `npm run build:skill` after changing source templates; `npm pack` also rebuilds assets. Build-time Node.js is not a runtime dependency of the basic skill.
 
 ## Why AI-RULES
 
